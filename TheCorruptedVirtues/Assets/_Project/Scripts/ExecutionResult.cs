@@ -1,7 +1,7 @@
 namespace TheCorruptedVirtues.Combat
 {
-    // Result tiers for the resonance timing check.
-    public enum ResonanceResult
+    // Result tiers for the execution timing check.
+    public enum ExecutionResult
     {
         Fumble,
         Miss,

@@ -11,10 +11,10 @@ namespace TheCorruptedVirtues.Combat
             CombatStats defender,
             ElementType defenderElement,
             AbilitySpec ability,
-            ResonanceResult resonanceResult)
+            ExecutionResult executionResult)
         {
             float elementMultiplier = ElementChart.GetMultiplier(ability.Element, defenderElement);
-            float resonanceMultiplier = ResonanceModifiers.GetDamageMultiplier(resonanceResult);
+            float executionMultiplier = ExecutionModifiers.GetDamageMultiplier(executionResult);
             _ = attackerElement;
 
             if (ability.Kind == AbilityKind.Support)
@@ -22,7 +22,7 @@ namespace TheCorruptedVirtues.Combat
                 return new DamageBreakdown(
                     0,
                     elementMultiplier,
-                    resonanceMultiplier,
+                    executionMultiplier,
                     1.0f,
                     0.0f);
             }
@@ -34,13 +34,13 @@ namespace TheCorruptedVirtues.Combat
             float mitigationFactor = 100.0f / (100.0f + defenseStat);
             float mitigatedDamage = preMitigationDamage * mitigationFactor;
 
-            float finalDamageFloat = mitigatedDamage * elementMultiplier * resonanceMultiplier;
+            float finalDamageFloat = mitigatedDamage * elementMultiplier * executionMultiplier;
             int finalDamage = Math.Max(0, (int)Math.Round(finalDamageFloat, MidpointRounding.AwayFromZero));
 
             return new DamageBreakdown(
                 finalDamage,
                 elementMultiplier,
-                resonanceMultiplier,
+                executionMultiplier,
                 mitigationFactor,
                 preMitigationDamage);
         }

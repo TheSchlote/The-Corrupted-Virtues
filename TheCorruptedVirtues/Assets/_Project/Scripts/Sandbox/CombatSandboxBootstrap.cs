@@ -30,7 +30,7 @@ namespace TheCorruptedVirtues.Combat
 
         private static Slider CreateSlider(Transform parent)
         {
-            GameObject sliderObject = new GameObject("ResonanceSlider");
+            GameObject sliderObject = new GameObject("ExecutionSlider");
             sliderObject.transform.SetParent(parent, false);
 
             RectTransform rectTransform = sliderObject.AddComponent<RectTransform>();
@@ -51,6 +51,7 @@ namespace TheCorruptedVirtues.Combat
             CreateZone(sliderObject.transform, "ZoneMiss", 0.20f, 0.40f, new Color(0.55f, 0.4f, 0.1f, 0.5f));
             CreateZone(sliderObject.transform, "ZoneHit", 0.40f, 0.80f, new Color(0.1f, 0.5f, 0.2f, 0.4f));
             CreateZone(sliderObject.transform, "ZoneDivine", 0.80f, 0.95f, new Color(0.2f, 0.45f, 0.75f, 0.5f));
+            CreateZone(sliderObject.transform, "ZoneLateHit", 0.95f, 1.0f, new Color(0.85f, 0.85f, 0.85f, 0.35f));
 
             GameObject fillAreaObject = new GameObject("Fill Area");
             fillAreaObject.transform.SetParent(sliderObject.transform, false);

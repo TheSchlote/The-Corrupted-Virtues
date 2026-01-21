@@ -5,20 +5,20 @@ namespace TheCorruptedVirtues.Combat
     {
         public int FinalDamage { get; }
         public float ElementMultiplier { get; }
-        public float ResonanceMultiplier { get; }
+        public float ExecutionMultiplier { get; }
         public float MitigationFactor { get; }
         public float PreMitigationDamage { get; }
 
         public DamageBreakdown(
             int finalDamage,
             float elementMultiplier,
-            float resonanceMultiplier,
+            float executionMultiplier,
             float mitigationFactor,
             float preMitigationDamage)
         {
             FinalDamage = finalDamage;
             ElementMultiplier = elementMultiplier;
-            ResonanceMultiplier = resonanceMultiplier;
+            ExecutionMultiplier = executionMultiplier;
             MitigationFactor = mitigationFactor;
             PreMitigationDamage = preMitigationDamage;
         }

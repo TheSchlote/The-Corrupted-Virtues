@@ -1,7 +1,7 @@
 namespace TheCorruptedVirtues.Combat
 {
-    // Pure C# evaluator for resonance timing results.
-    public class ResonanceCalculator
+    // Pure C# evaluator for execution timing results.
+    public class ExecutionCalculator
     {
         private const float DivineMin = 0.80f;
         private const float DivineMax = 0.95f;
@@ -10,27 +10,27 @@ namespace TheCorruptedVirtues.Combat
         private const float MissMin = 0.20f;
         private const float MissMax = 0.40f;
 
-        // Returns the resonance result for a normalized value in [0, 1].
-        public ResonanceResult Evaluate(float normalizedValue)
+        // Returns the execution result for a normalized value in [0, 1].
+        public ExecutionResult Evaluate(float normalizedValue)
         {
             float clampedValue = Clamp01(normalizedValue);
 
             if (clampedValue >= DivineMin && clampedValue <= DivineMax)
             {
-                return ResonanceResult.Divine;
+                return ExecutionResult.Divine;
             }
 
             if ((clampedValue >= HitMin && clampedValue < HitMax) || clampedValue > DivineMax)
             {
-                return ResonanceResult.Hit;
+                return ExecutionResult.Hit;
             }
 
             if (clampedValue >= MissMin && clampedValue < MissMax)
             {
-                return ResonanceResult.Miss;
+                return ExecutionResult.Miss;
             }
 
-            return ResonanceResult.Fumble;
+            return ExecutionResult.Fumble;
         }
 
         // Defensive clamp to keep values in the normalized range.

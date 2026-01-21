@@ -3,21 +3,23 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace TheCorruptedVirtues.Combat
 {
-    // Simple harness to validate resonance timing and damage in a Unity scene.
+    // Simple harness to validate execution timing and damage in a Unity scene.
     public sealed class CombatSandboxController : MonoBehaviour
     {
         [Header("UI")]
-        [SerializeField] private Slider resonanceSlider;
+        [FormerlySerializedAs("resonanceSlider")]
+        [SerializeField] private Slider executionSlider;
         [SerializeField] private TMP_Text outputText;
 
         [Header("Timing")]
         [SerializeField] private float cycleDurationSeconds = 2.0f;
 
-        private readonly ResonanceCalculator resonanceCalculator = new ResonanceCalculator();
+        private readonly ExecutionCalculator executionCalculator = new ExecutionCalculator();
         private Coroutine meterLoop;
         private Coroutine pulseLoop;
         private bool isRunning;
@@ -34,20 +36,20 @@ namespace TheCorruptedVirtues.Combat
 
         private void Start()
         {
-            if (resonanceSlider == null || outputText == null)
+            if (executionSlider == null || outputText == null)
             {
                 Debug.LogError("CombatSandboxController is missing UI references.");
                 enabled = false;
                 return;
             }
 
-            baseSliderScale = resonanceSlider.transform.localScale;
+            baseSliderScale = executionSlider.transform.localScale;
             ResetMeter();
         }
 
         public void SetReferences(Slider slider, TMP_Text text)
         {
-            resonanceSlider = slider;
+            executionSlider = slider;
             outputText = text;
         }
 
@@ -76,8 +78,8 @@ namespace TheCorruptedVirtues.Combat
         {
             StopMeterLoop();
             StopPulse();
-            resonanceSlider.transform.localScale = baseSliderScale;
-            resonanceSlider.value = 0.0f;
+            executionSlider.transform.localScale = baseSliderScale;
+            executionSlider.value = 0.0f;
             outputText.text = "Press Space or South button to stop the meter.";
             StartMeterLoop();
         }
@@ -109,7 +111,7 @@ namespace TheCorruptedVirtues.Combat
                 float t = (cycleDurationSeconds <= 0.0f)
                     ? 0.0f
                     : (elapsed % cycleDurationSeconds) / cycleDurationSeconds;
-                resonanceSlider.value = t;
+                executionSlider.value = t;
                 yield return null;
             }
         }
@@ -119,9 +121,9 @@ namespace TheCorruptedVirtues.Combat
             StopMeterLoop();
             StartPulse();
 
-            float sliderValue = resonanceSlider.value;
-            ResonanceResult resonanceResult = resonanceCalculator.Evaluate(sliderValue);
-            float resonanceMultiplier = ResonanceModifiers.GetDamageMultiplier(resonanceResult);
+            float sliderValue = executionSlider.value;
+            ExecutionResult executionResult = executionCalculator.Evaluate(sliderValue);
+            float executionMultiplier = ExecutionModifiers.GetDamageMultiplier(executionResult);
 
             DamageBreakdown breakdown = DamageCalculator.ComputeDamage(
                 attackerStats,
@@ -129,18 +131,19 @@ namespace TheCorruptedVirtues.Combat
                 defenderStats,
                 defenderElement,
                 testAbility,
-                resonanceResult);
+                executionResult);
 
             StringBuilder builder = new StringBuilder(256);
             builder.AppendLine("=== Combat Sandbox ===");
             builder.Append("Slider: ").Append(sliderValue.ToString("0.000")).AppendLine();
-            builder.Append("Resonance: ").Append(resonanceResult)
-                .Append(" (x").Append(resonanceMultiplier.ToString("0.00")).AppendLine(")");
+            builder.Append("Execution: ").Append(executionResult)
+                .Append(" (x").Append(executionMultiplier.ToString("0.00")).AppendLine(")");
             builder.Append("Element: ").Append(testAbility.Element)
                 .Append(" vs ").Append(defenderElement)
                 .Append(" (x").Append(breakdown.ElementMultiplier.ToString("0.00")).AppendLine(")");
             builder.Append("Pre-mitigation: ").Append(breakdown.PreMitigationDamage.ToString("0.00"))
                 .Append(" | Mitigation: ").Append(breakdown.MitigationFactor.ToString("0.000")).AppendLine();
+            builder.AppendLine("Windows: Fumble <0.20 | Miss 0.20-0.40 | Hit 0.40-0.80 | Divine 0.80-0.95 | LateHit 0.95-1.00");
             builder.Append("Final Damage: ").Append(breakdown.FinalDamage);
 
             outputText.text = builder.ToString();
@@ -164,7 +167,7 @@ namespace TheCorruptedVirtues.Combat
 
         private IEnumerator PulseSlider()
         {
-            Transform target = resonanceSlider.transform;
+            Transform target = executionSlider.transform;
             Vector3 upScale = baseSliderScale * 1.1f;
 
             yield return ScaleOverTime(target, baseSliderScale, upScale, 0.06f);
