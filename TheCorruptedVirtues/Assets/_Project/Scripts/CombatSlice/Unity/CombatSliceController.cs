@@ -26,6 +26,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private TMP_Text debugText;
         [SerializeField] private TMP_Text actionHintText;
 
+        [Header("Combat")]
+        [SerializeField] private SwingMeterController swingMeter;
+        [SerializeField] private int baseAttackDamage = 10;
+
         [Header("Tuning")]
         [SerializeField] private float moveStepDelaySeconds = 0.15f;
         [SerializeField] private Color cursorNeutralColor = Color.white;
@@ -38,6 +42,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private UnitActor otherUnit;
         private bool isPlayerTurn = true;
         private bool isMoving;
+        private bool isAwaitingSwingStop;
         private Transform activeIntentMarker;
         private Renderer cursorRenderer;
 
@@ -45,6 +50,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             InitializeUnits();
             ResetSliceState();
+        }
+
+        public void SetSwingMeter(SwingMeterController meter)
+        {
+            swingMeter = meter;
         }
 
         private void Update()
@@ -57,6 +67,16 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             if (isMoving)
             {
+                return;
+            }
+
+            if (isAwaitingSwingStop)
+            {
+                if (IsConfirmPressed())
+                {
+                    ResolvePlayerSwingStop();
+                }
+
                 return;
             }
 
@@ -93,6 +113,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void ResetSliceState()
         {
             isMoving = false;
+            isAwaitingSwingStop = false;
+            swingMeter?.Cancel();
             ClearIntentMarker();
             UpdateOccupancy();
 
@@ -164,8 +186,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             if (target == otherUnit.CurrentCoord && distance == 1)
             {
-                ResolveAttack(activeUnit, otherUnit);
-                EndTurn();
+                if (isPlayerTurn)
+                {
+                    BeginPlayerAttack();
+                }
+                else
+                {
+                    ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
+                    EndTurn();
+                }
                 return;
             }
 
@@ -183,6 +212,65 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             BeginMove(currentPath);
+        }
+
+        private void BeginPlayerAttack()
+        {
+            if (swingMeter == null || !swingMeter.enabled)
+            {
+                ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
+                EndTurn();
+                return;
+            }
+
+            if (isAwaitingSwingStop)
+            {
+                return;
+            }
+
+            isAwaitingSwingStop = true;
+            if (tacticalCursor != null)
+            {
+                tacticalCursor.IsLocked = true;
+            }
+
+            pathPreview?.Clear();
+            swingMeter.Begin();
+
+            if (actionHintText != null)
+            {
+                actionHintText.text = "Confirm: Stop Swing";
+            }
+        }
+
+        private void ResolvePlayerSwingStop()
+        {
+            if (!isAwaitingSwingStop)
+            {
+                return;
+            }
+
+            isAwaitingSwingStop = false;
+            if (swingMeter == null || !swingMeter.enabled)
+            {
+                if (tacticalCursor != null)
+                {
+                    tacticalCursor.IsLocked = false;
+                }
+
+                return;
+            }
+
+            swingMeter.StopAndEvaluate(out float multiplier, out _);
+            int damage = Mathf.Max(0, Mathf.RoundToInt(baseAttackDamage * multiplier));
+            ResolveAttack(activeUnit, otherUnit, damage);
+
+            if (tacticalCursor != null)
+            {
+                tacticalCursor.IsLocked = false;
+            }
+
+            EndTurn();
         }
 
         private void BeginMove(List<GridCoord> path)
@@ -217,9 +305,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             EndTurn();
         }
 
-        private void ResolveAttack(UnitActor attacker, UnitActor defender)
+        private void ResolveAttack(UnitActor attacker, UnitActor defender, int damage)
         {
-            defender.ApplyDamage(10);
+            defender.ApplyDamage(damage);
             if (defender.CurrentHp <= 0)
             {
                 Debug.Log("Unit defeated");
@@ -259,7 +347,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             int distance = GridMath.ManhattanDistance(activeUnit.CurrentCoord, otherUnit.CurrentCoord);
             if (distance == 1)
             {
-                ResolveAttack(activeUnit, otherUnit);
+                ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
                 EndTurn();
                 yield break;
             }
@@ -329,12 +417,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private bool IsConfirmPressed()
         {
-            if (Keyboard.current == null)
-            {
-                return false;
-            }
-
-            return Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame;
+            bool keyboardPressed = Keyboard.current != null
+                && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame);
+            bool gamepadPressed = Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame;
+            return keyboardPressed || gamepadPressed;
         }
 
         private void UpdateUi()
