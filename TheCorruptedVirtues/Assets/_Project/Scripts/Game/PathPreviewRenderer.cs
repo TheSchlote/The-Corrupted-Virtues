@@ -10,6 +10,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private GridPresenter gridPresenter;
         [SerializeField] private LineRenderer lineRenderer;
 
+        // Code-driven wiring (no serialized scene refs needed).
+        public void Configure(GridPresenter presenter, LineRenderer line)
+        {
+            gridPresenter = presenter;
+            lineRenderer = line;
+        }
+
         public void RenderPath(IReadOnlyList<GridCoord> path)
         {
             if (lineRenderer == null || gridPresenter == null)

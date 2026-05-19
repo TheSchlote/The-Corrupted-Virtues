@@ -15,6 +15,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private float inputCooldown;
 
+        // Code-driven wiring (no serialized scene refs needed).
+        public void Configure(GridPresenter presenter, Transform camera)
+        {
+            gridPresenter = presenter;
+            cameraTransform = camera;
+        }
+
         public void Initialize(GridCoord startCoord)
         {
             CursorCoord = startCoord;
