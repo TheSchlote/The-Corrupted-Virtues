@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
@@ -29,7 +28,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return false;
             }
 
-            Vector2Int delta = ReadDirectionalInput();
+            Vector2Int delta = GameInput.Current.MoveAxis;
             if (delta == Vector2Int.zero)
             {
                 inputCooldown = 0.0f;
@@ -70,35 +69,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             Vector3 world = gridPresenter.GridToWorld(CursorCoord, gridPresenter.CursorY);
             transform.position = world;
-        }
-
-        private static Vector2Int ReadDirectionalInput()
-        {
-            int x = 0;
-            int y = 0;
-
-            if (Keyboard.current != null)
-            {
-                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-                {
-                    x -= 1;
-                }
-                else if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-                {
-                    x += 1;
-                }
-
-                if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
-                {
-                    y -= 1;
-                }
-                else if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
-                {
-                    y += 1;
-                }
-            }
-
-            return new Vector2Int(x, y);
         }
 
         private Vector2Int GetCameraRelativeStep(Vector2Int input)

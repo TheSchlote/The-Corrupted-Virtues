@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
@@ -62,7 +61,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+            if (GameInput.Current.ResetPressed)
             {
                 ResetSliceState();
                 return;
@@ -420,10 +419,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private bool IsConfirmPressed()
         {
-            bool keyboardPressed = Keyboard.current != null
-                && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame);
-            bool gamepadPressed = Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame;
-            return keyboardPressed || gamepadPressed;
+            return GameInput.Current.ConfirmPressed;
         }
 
         private void UpdateUi()

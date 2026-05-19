@@ -2,9 +2,9 @@ using System.Collections;
 using System.Text;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
+using TheCorruptedVirtues.CombatSlice.Unity;
 
 namespace TheCorruptedVirtues.Combat
 {
@@ -55,7 +55,7 @@ namespace TheCorruptedVirtues.Combat
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+            if (GameInput.Current.ResetPressed)
             {
                 ResetMeter();
                 return;
@@ -69,9 +69,7 @@ namespace TheCorruptedVirtues.Combat
 
         private bool IsConfirmPressed()
         {
-            bool spacePressed = Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
-            bool southPressed = Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame;
-            return spacePressed || southPressed;
+            return GameInput.Current.ConfirmPressed;
         }
 
         private void ResetMeter()

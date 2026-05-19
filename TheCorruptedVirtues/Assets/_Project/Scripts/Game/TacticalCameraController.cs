@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -75,41 +74,30 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void UpdateInput()
         {
-            if (Keyboard.current != null)
+            IGameInput input = GameInput.Current;
+
+            yaw += input.CameraYaw * yawSpeed * Time.deltaTime;
+
+            if (input.CameraLookActive)
             {
-                if (Keyboard.current.qKey.isPressed)
-                {
-                    yaw -= yawSpeed * Time.deltaTime;
-                }
-                else if (Keyboard.current.eKey.isPressed)
-                {
-                    yaw += yawSpeed * Time.deltaTime;
-                }
+                Vector2 lookDelta = input.CameraLookDelta;
+                yaw += lookDelta.x * mouseLookSensitivity;
+                pitch -= lookDelta.y * mouseLookSensitivity;
             }
 
-            if (Mouse.current != null)
+            float scroll = input.CameraZoomDelta;
+            if (Mathf.Abs(scroll) > 0.01f)
             {
-                if (Mouse.current.rightButton.isPressed)
-                {
-                    Vector2 delta = Mouse.current.delta.ReadValue();
-                    yaw += delta.x * mouseLookSensitivity;
-                    pitch -= delta.y * mouseLookSensitivity;
-                }
+                distance -= scroll * zoomSpeed * 0.01f;
+            }
 
-                float scroll = Mouse.current.scroll.ReadValue().y;
-                if (Mathf.Abs(scroll) > 0.01f)
-                {
-                    distance -= scroll * zoomSpeed * 0.01f;
-                }
-
-                if (Mouse.current.middleButton.isPressed)
-                {
-                    Vector2 delta = Mouse.current.delta.ReadValue();
-                    Vector3 right = transform.right;
-                    Vector3 forward = Vector3.Cross(Vector3.up, right).normalized;
-                    Vector3 panDelta = (-right * delta.x - forward * delta.y) * panSpeed;
-                    panOffset += panDelta;
-                }
+            if (input.CameraPanActive)
+            {
+                Vector2 panDelta = input.CameraPanDelta;
+                Vector3 right = transform.right;
+                Vector3 forward = Vector3.Cross(Vector3.up, right).normalized;
+                Vector3 panMove = (-right * panDelta.x - forward * panDelta.y) * panSpeed;
+                panOffset += panMove;
             }
 
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
