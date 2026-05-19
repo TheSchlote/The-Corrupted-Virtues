@@ -1,0 +1,60 @@
+# The Corrupted Virtues — EditorConfig
+# Severities are suggestion/warning only so style never blocks a Unity build.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{asmdef,asmref}]
+indent_size = 2
+
+# Unity-generated / serialized files: leave formatting alone
+[*.{meta,unity,prefab,asset,mat,anim,controller}]
+charset = unset
+trim_trailing_whitespace = false
+insert_final_newline = unset
+
+[*.cs]
+# Namespaces / usings
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:suggestion
+
+# 'this.' not required (matches existing codebase style)
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+# Language features
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_prefer_braces = true:suggestion
+csharp_style_namespace_declarations = block_scoped:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_readonly_field = true:suggestion
+
+# Naming: private fields camelCase, constants/PascalCase types
+dotnet_naming_rule.private_fields_camel_case.severity = suggestion
+dotnet_naming_rule.private_fields_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_camel_case.style = camel_case
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.camel_case.capitalization = camel_case
+
+dotnet_naming_rule.types_pascal_case.severity = suggestion
+dotnet_naming_rule.types_pascal_case.symbols = types_and_members
+dotnet_naming_rule.types_pascal_case.style = pascal_case
+dotnet_naming_symbols.types_and_members.applicable_kinds = class,struct,enum,interface,method,property
+dotnet_naming_style.pascal_case.capitalization = pascal_case

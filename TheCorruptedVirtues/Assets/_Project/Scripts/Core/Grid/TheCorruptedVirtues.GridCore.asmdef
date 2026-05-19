@@ -1,0 +1,14 @@
+{
+    "name": "TheCorruptedVirtues.GridCore",
+    "rootNamespace": "TheCorruptedVirtues.CombatSlice.Core",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

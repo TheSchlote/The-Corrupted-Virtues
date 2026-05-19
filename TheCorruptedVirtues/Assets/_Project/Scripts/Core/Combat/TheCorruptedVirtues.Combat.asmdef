@@ -1,0 +1,14 @@
+{
+    "name": "TheCorruptedVirtues.Combat",
+    "rootNamespace": "TheCorruptedVirtues.Combat",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

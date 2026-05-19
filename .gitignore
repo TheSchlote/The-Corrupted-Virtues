@@ -1,10 +1,94 @@
-# Ignore Unity project internals (handled by nested gitignore)
-TheCorruptedVirtues/Library/
-TheCorruptedVirtues/Temp/
-TheCorruptedVirtues/Logs/
-TheCorruptedVirtues/Obj/
+# =====================================================================
+# The Corrupted Virtues — single consolidated .gitignore
+# Unity project lives in TheCorruptedVirtues/. Patterns are intentionally
+# NOT leading-slash-anchored so they also match inside that subfolder.
+# =====================================================================
 
-# OS / editor noise
+# --- Unity generated ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+.utmp/
+sysinfo.txt
+crashlytics-build.properties
+mono_crash.*
+
+# Asset meta data should only be ignored when the asset itself is ignored
+!/[Aa]ssets/**/*.meta
+
+# Auto-generated solution / project files (we keep none of these)
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity3D Generated File On Crash Reports
+*.stackdump
+
+# Builds
+*.apk
+*.aab
+*.unitypackage
+*.unitypackage.meta
+*.app
+
+# Blender backup files (Unity imports .blend directly)
+*.blend1
+*.blend1.meta
+
+# Addressables (before user customizations)
+/[Aa]ssets/StreamingAssets/aa*
+/[Aa]ssets/AddressableAssetsData/link.xml*
+/[Aa]ssets/Addressables_Temp*
+/[Aa]ssets/AddressableAssetsData/*/*.bin*
+/ServerData
+
+# Visual Scripting auto-generated
+/[Aa]ssets/Unity.VisualScripting.Generated/
+
+# JetBrains Rider
+/[Aa]ssets/Plugins/Editor/JetBrains*
+*.DotSettings.user
+.idea/
+
+# TestRunner auto-generated scenes
+/[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+InitTestScene*.unity*
+
+# --- IDE / tooling ---
+.vs/
 .vscode/
+.gradle/
+.consulo/
+ExportedObj/
+
+# --- OS noise ---
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Git LFS note ---
+# Binary art is tracked via Git LFS (see .gitattributes). Run `git lfs install` once per clone.
