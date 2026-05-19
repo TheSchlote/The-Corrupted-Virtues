@@ -64,7 +64,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Renderer r = ground.GetComponent<Renderer>();
             if (r != null)
             {
-                r.material.color = new Color(0.18f, 0.2f, 0.24f);
+                r.material = ViewMaterials.CreateColored(new Color(0.18f, 0.2f, 0.24f));
             }
         }
 
@@ -75,7 +75,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            cursorRenderer.material.color = ColorFor(e.State);
+            ViewMaterials.SetColor(cursorRenderer, ColorFor(e.State));
         }
 
         private void OnPathPreviewChanged(IReadOnlyList<GridCoord> path)
@@ -93,10 +93,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 pathPreview.Clear();
             }
 
-            if (cursorRenderer != null)
-            {
-                cursorRenderer.material.color = NeutralColor;
-            }
+            ViewMaterials.SetColor(cursorRenderer, NeutralColor);
         }
 
         private static Color ColorFor(SelectionState state)

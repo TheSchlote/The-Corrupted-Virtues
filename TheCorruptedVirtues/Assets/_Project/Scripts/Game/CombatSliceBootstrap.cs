@@ -80,7 +80,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             cursor = cursorObject.AddComponent<TacticalCursorController>();
             cursor.Configure(grid, cameraTransform);
-            return cursorObject.GetComponent<Renderer>();
+
+            Renderer cursorRenderer = cursorObject.GetComponent<Renderer>();
+            cursorRenderer.material = ViewMaterials.CreateColored(Color.white);
+            return cursorRenderer;
         }
 
         private PathPreviewRenderer CreatePathPreview(GridPresenter grid)

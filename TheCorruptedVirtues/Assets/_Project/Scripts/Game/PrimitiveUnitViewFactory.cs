@@ -22,6 +22,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             PrimitiveType shape = faction == Faction.Player
                 ? PrimitiveType.Capsule
                 : PrimitiveType.Cube;
+            Color color = faction == Faction.Player ? PlayerColor : EnemyColor;
 
             GameObject go = GameObject.CreatePrimitive(shape);
             go.name = faction == Faction.Player ? "PlayerUnitView" : "EnemyUnitView";
@@ -30,8 +31,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 go.transform.SetParent(parent, false);
             }
 
+            Renderer renderer = go.GetComponent<Renderer>();
+            renderer.material = ViewMaterials.CreateColored(color);
+
             PrimitiveUnitView view = go.AddComponent<PrimitiveUnitView>();
-            view.Configure(go.GetComponent<Renderer>(), faction == Faction.Player ? PlayerColor : EnemyColor);
+            view.Configure(renderer, color);
             return view;
         }
     }

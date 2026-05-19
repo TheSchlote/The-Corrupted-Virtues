@@ -19,10 +19,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             primitiveRenderer = renderer;
             baseColor = color;
-            if (primitiveRenderer != null)
-            {
-                primitiveRenderer.material.color = color;
-            }
+            ViewMaterials.SetColor(primitiveRenderer, color);
         }
 
         public void Warp(Vector3 world)
@@ -75,11 +72,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 elapsed += Time.deltaTime;
                 float k = Mathf.PingPong(elapsed / duration * 2f, 1f);
-                primitiveRenderer.material.color = Color.Lerp(baseColor, Color.white, k);
+                ViewMaterials.SetColor(primitiveRenderer, Color.Lerp(baseColor, Color.white, k));
                 yield return null;
             }
 
-            primitiveRenderer.material.color = baseColor;
+            ViewMaterials.SetColor(primitiveRenderer, baseColor);
             flashRoutine = null;
         }
     }

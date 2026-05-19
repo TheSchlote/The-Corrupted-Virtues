@@ -78,9 +78,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 MoveRange = 4
             };
 
+            // Units are spawned by ResetSliceState (after CombatReset) — emit
+            // the grid, then let the reset path do the single authoritative
+            // spawn so views aren't created, destroyed and recreated.
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
-            events.RaiseUnitSpawned(new UnitSpawnedEvent(player.Id, player.Faction, player.Coord, player.Hp, player.MaxHp));
-            events.RaiseUnitSpawned(new UnitSpawnedEvent(enemy.Id, enemy.Faction, enemy.Coord, enemy.Hp, enemy.MaxHp));
 
             started = true;
             ResetSliceState();
