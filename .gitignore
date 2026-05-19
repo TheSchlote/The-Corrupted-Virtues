@@ -19,6 +19,15 @@ sysinfo.txt
 crashlytics-build.properties
 mono_crash.*
 
+# Guard: the Unity project lives in TheCorruptedVirtues/. Unity batch mode can
+# scaffold a stray default project at the repo root — ignore that (root-anchored
+# so it never affects TheCorruptedVirtues/Packages or .../ProjectSettings).
+/Packages/
+/ProjectSettings/
+/[Aa]ssets/
+/[Ll]ibrary/
+/[Tt]emp/
+
 # Asset meta data should only be ignored when the asset itself is ignored
 !/[Aa]ssets/**/*.meta
 
