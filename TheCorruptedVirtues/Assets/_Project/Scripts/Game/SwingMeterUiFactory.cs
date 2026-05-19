@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace TheCorruptedVirtues.Combat
+namespace TheCorruptedVirtues.CombatSlice.Unity
 {
     // Shared builder for the Gladius-style swing meter UI.
     public static class SwingMeterUiFactory
