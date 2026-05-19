@@ -1,0 +1,23 @@
+name: Unity Activation (one-time)
+
+# Run this ONCE, manually, to get a Unity Personal activation file (.alf).
+# Steps are in docs/CI.md. After you have the resulting .ulf as the
+# UNITY_LICENSE secret, you never need this workflow again.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  activation:
+    name: Request .alf activation file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request manual activation file
+        id: getManualLicenseFile
+        uses: game-ci/unity-request-activation-file@v2
+
+      - name: Upload activation file
+        uses: actions/upload-artifact@v4
+        with:
+          name: Manual Activation File
+          path: ${{ steps.getManualLicenseFile.outputs.filePath }}

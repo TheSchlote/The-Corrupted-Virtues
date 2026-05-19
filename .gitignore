@@ -99,5 +99,9 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# --- Unity license files (NEVER commit these) ---
+*.alf
+*.ulf
+
 # --- Git LFS note ---
 # Binary art is tracked via Git LFS (see .gitattributes). Run `git lfs install` once per clone.
