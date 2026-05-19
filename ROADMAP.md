@@ -87,17 +87,17 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 
 ## 5. Milestones
 
-### M0 — Foundation _(plumbing only, no gameplay change)_
-- [ ] Archive tags `archive/prototype-combat`, `archive/gridmovement` (pushed)
-- [ ] Fast-forward `main` → `prototype-combat` (zero loss, full history)
-- [ ] `.gitattributes` — Git LFS for binary art, forced-text + `unityyamlmerge` for `.unity`/`.asset`/`.prefab`, normalized EOL
-- [ ] Consolidate `.gitignore` (single correct file, add `*.slnx`); add `.editorconfig`
-- [ ] Assembly definitions: `Combat` (pure C#), `GridCore` (pure C#), `Unity`, `Tests.EditMode`
-- [ ] Reorganize scripts into folders matching asmdef boundaries
-- [ ] EditMode tests pinning: `DamageCalculator`, `ElementChart`, `ExecutionCalculator`, `GridPathfinderBfs`, `GridOccupancy`
-- [ ] Commit `ROADMAP.md`, `docs/LORE.md`, `docs/STORY.md`; add `docs/DESIGN.md` (combat math spec); real root `README.md`
-- [ ] **Checkpoint:** open Unity → recompiles clean → Test Runner green
-- [ ] _(when ready)_ CI workflow: build + test on push/PR to `main`
+### M0 — Foundation _(plumbing only, no gameplay change)_ ✅ **complete (2026-05-19)**
+- [x] Archive tags `archive/prototype-combat`, `archive/gridmovement` (pushed)
+- [x] Fast-forward `main` → `prototype-combat` (zero loss, full history)
+- [x] `.gitattributes` — Git LFS for binary art, forced-text + `unityyamlmerge` for `.unity`/`.asset`/`.prefab`, normalized EOL
+- [x] Consolidate `.gitignore` (single correct file, add `*.slnx`); add `.editorconfig`
+- [x] Assembly definitions: `Combat` (pure C#), `GridCore` (pure C#), `Unity`, `Tests.EditMode`
+- [x] Reorganize scripts into folders matching asmdef boundaries
+- [x] EditMode tests pinning: `DamageCalculator`, `ElementChart`, `ExecutionCalculator`, `GridPathfinderBfs`, `GridOccupancy`
+- [x] Commit `ROADMAP.md`, `docs/LORE.md`, `docs/STORY.md`; add `docs/DESIGN.md` (combat math spec); real root `README.md`
+- [x] **Checkpoint:** open Unity → recompiles clean → Test Runner green
+- [x] CI workflow: build + test on push/PR to `main` _(PR #1, merged 2026-05-19; `UNITY_LICENSE` secret setup still pending — see [docs/CI.md](docs/CI.md))_
 
 ### M1 — Vertical Slice _(prove the loop is fun with capsules)_
 - [ ] `CombatSliceBootstrap`: builds grid + units + camera + UI + input entirely in C#
