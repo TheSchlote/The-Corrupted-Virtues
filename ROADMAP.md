@@ -102,7 +102,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 ### M1 — Vertical Slice _(prove the loop is fun with capsules)_
 - [ ] `CombatSliceBootstrap`: builds grid + units + camera + UI + input entirely in C#
 - [ ] Retire the hand-wired `CombatSlice.unity` (near-empty scene + bootstrap)
-- [ ] Input abstraction: keyboard/mouse **and** gamepad from day one
+- [x] Input abstraction: keyboard/mouse **and** gamepad from day one _(PR #4)_
 - [x] **QTE abstraction** (interface) with the existing **swing meter as the first concrete type** _(PR #3)_
 - [x] **Grid core supports multi-tile occupancy** (design for N×N; M1 spawns only 1×1) _(PR #2)_
 - [ ] Loop: select unit → move → attack → QTE → deterministic damage → end turn → repeat
