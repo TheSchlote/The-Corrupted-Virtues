@@ -100,8 +100,8 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] CI workflow: build + test on push/PR to `main` _(PR #1, merged 2026-05-19; `UNITY_LICENSE` secret setup still pending — see [docs/CI.md](docs/CI.md))_
 
 ### M1 — Vertical Slice _(prove the loop is fun with capsules)_
-- [ ] `CombatSliceBootstrap`: builds grid + units + camera + UI + input entirely in C#
-- [ ] Retire the hand-wired `CombatSlice.unity` (near-empty scene + bootstrap)
+- [x] `CombatSliceBootstrap`: builds grid + units + camera + UI + input entirely in C# _(PR #5)_
+- [x] Retire the hand-wired `CombatSlice.unity` (near-empty scene + bootstrap) _(PR #5)_
 - [x] Input abstraction: keyboard/mouse **and** gamepad from day one _(PR #4)_
 - [x] **QTE abstraction** (interface) with the existing **swing meter as the first concrete type** _(PR #3)_
 - [x] **Grid core supports multi-tile occupancy** (design for N×N; M1 spawns only 1×1) _(PR #2)_
