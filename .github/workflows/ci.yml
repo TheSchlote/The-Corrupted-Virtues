@@ -1,0 +1,55 @@
+name: CI
+
+# Compiles the project and runs EditMode tests on every push/PR to main.
+# Requires the repo secret UNITY_LICENSE (see docs/CI.md for one-time setup).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  editmode-tests:
+    name: EditMode tests (Unity)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: TheCorruptedVirtues/Library
+          key: Library-${{ hashFiles('TheCorruptedVirtues/Assets/**', 'TheCorruptedVirtues/Packages/**', 'TheCorruptedVirtues/ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
+      - name: Run EditMode tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          # Unity project lives in a subfolder, not the repo root.
+          projectPath: TheCorruptedVirtues
+          # Reads ProjectSettings/ProjectVersion.txt (6000.3.15f1). If GameCI
+          # has no editor image for that exact patch yet, pin the nearest
+          # available 6000.3.x here instead of "auto".
+          unityVersion: auto
+          testMode: EditMode
+          artifactsPath: artifacts
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: editmode-test-results
+          path: artifacts
