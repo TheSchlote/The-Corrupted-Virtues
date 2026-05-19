@@ -7,7 +7,8 @@ using TheCorruptedVirtues.Combat;
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
     // Drives the Gladius-style swing meter UI and timing evaluation.
-    public sealed class SwingMeterController : MonoBehaviour
+    // First concrete IExecutionMeter (QTE) type.
+    public sealed class SwingMeterController : MonoBehaviour, IExecutionMeter
     {
         [Header("UI")]
         [SerializeField] private GameObject meterRoot;
@@ -30,6 +31,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private bool isInitialized;
 
         public bool IsRunning { get; private set; }
+
+        public bool IsAvailable => enabled;
 
         private void Awake()
         {

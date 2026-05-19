@@ -1,4 +1,5 @@
 using UnityEngine;
+using TheCorruptedVirtues.CombatSlice.Unity;
 
 namespace TheCorruptedVirtues.Combat
 {

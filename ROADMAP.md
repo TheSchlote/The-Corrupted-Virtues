@@ -103,8 +103,8 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [ ] `CombatSliceBootstrap`: builds grid + units + camera + UI + input entirely in C#
 - [ ] Retire the hand-wired `CombatSlice.unity` (near-empty scene + bootstrap)
 - [ ] Input abstraction: keyboard/mouse **and** gamepad from day one
-- [ ] **QTE abstraction** (interface) with the existing **swing meter as the first concrete type**
-- [ ] **Grid core supports multi-tile occupancy** (design for N×N; M1 spawns only 1×1)
+- [x] **QTE abstraction** (interface) with the existing **swing meter as the first concrete type** _(PR #3)_
+- [x] **Grid core supports multi-tile occupancy** (design for N×N; M1 spawns only 1×1) _(PR #2)_
 - [ ] Loop: select unit → move → attack → QTE → deterministic damage → end turn → repeat
 - [ ] 1 player unit vs 1 enemy, one action/turn, placeholder primitives
 - [ ] Minimal HUD (turn owner, selection, HP) built in code

@@ -27,8 +27,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private TMP_Text actionHintText;
 
         [Header("Combat")]
-        [SerializeField] private SwingMeterController swingMeter;
         [SerializeField] private int baseAttackDamage = 10;
+
+        // Injected at runtime by the bootstrap (Unity can't serialize an
+        // interface field); the QTE type is pluggable behind IExecutionMeter.
+        private IExecutionMeter swingMeter;
 
         [Header("Tuning")]
         [SerializeField] private float moveStepDelaySeconds = 0.15f;
@@ -52,7 +55,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ResetSliceState();
         }
 
-        public void SetSwingMeter(SwingMeterController meter)
+        public void SetSwingMeter(IExecutionMeter meter)
         {
             swingMeter = meter;
         }
@@ -216,7 +219,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void BeginPlayerAttack()
         {
-            if (swingMeter == null || !swingMeter.enabled)
+            if (swingMeter == null || !swingMeter.IsAvailable)
             {
                 ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
                 EndTurn();
@@ -251,7 +254,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             isAwaitingSwingStop = false;
-            if (swingMeter == null || !swingMeter.enabled)
+            if (swingMeter == null || !swingMeter.IsAvailable)
             {
                 if (tacticalCursor != null)
                 {
