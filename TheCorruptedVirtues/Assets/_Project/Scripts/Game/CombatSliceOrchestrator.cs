@@ -40,6 +40,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private bool isPlayerTurn = true;
         private bool isMoving;
         private bool isAwaitingSwingStop;
+        private bool isCombatOver;
         private bool started;
 
         public void Initialize(
@@ -100,6 +101,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // Combat is over until reset: ignore movement, attacks and the
+            // swing meter so a fallen unit can't be acted on or against.
+            if (isCombatOver)
+            {
+                return;
+            }
+
             if (isMoving)
             {
                 return;
@@ -130,6 +138,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             isMoving = false;
             isAwaitingSwingStop = false;
+            isCombatOver = false;
             swingMeter?.Cancel();
 
             player.Coord = player.SpawnCoord;
@@ -362,11 +371,20 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (defender.Hp <= 0)
             {
                 events.RaiseUnitDied(defender.Id);
+                isCombatOver = true;
+                events.RaiseCombatEnded(attacker.Faction);
             }
         }
 
         private void EndTurn()
         {
+            // A lethal blow ends the slice — don't hand the turn back (this is
+            // what kept the dead enemy taking its turn and downing the player).
+            if (isCombatOver)
+            {
+                return;
+            }
+
             isPlayerTurn = !isPlayerTurn;
             SetActiveUnit(isPlayerTurn ? player : enemy, isPlayerTurn ? enemy : player);
             events.RaiseTurnChanged(isPlayerTurn ? Faction.Player : Faction.Enemy);

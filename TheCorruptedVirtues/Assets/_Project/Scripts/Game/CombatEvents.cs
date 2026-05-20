@@ -19,6 +19,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<SelectionChangedEvent> SelectionChanged;
         public event Action<IReadOnlyList<GridCoord>> PathPreviewChanged;
         public event Action<ExecutionGradedEvent> ExecutionGraded;
+        public event Action<Faction> CombatEnded;
         public event Action CombatReset;
 
         public void RaiseGridBuilt(GridBuiltEvent e) => GridBuilt?.Invoke(e);
@@ -30,6 +31,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(IReadOnlyList<GridCoord> path) => PathPreviewChanged?.Invoke(path);
         public void RaiseExecutionGraded(ExecutionGradedEvent e) => ExecutionGraded?.Invoke(e);
+        public void RaiseCombatEnded(Faction winner) => CombatEnded?.Invoke(winner);
         public void RaiseCombatReset() => CombatReset?.Invoke();
     }
 

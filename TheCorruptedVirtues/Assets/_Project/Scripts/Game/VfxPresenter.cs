@@ -89,13 +89,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void BuildCanvas()
         {
-            GameObject canvasObject = new GameObject("VfxCanvas");
-            canvasObject.transform.SetParent(transform, false);
-            Canvas canvas = canvasObject.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            Canvas canvas = UiCanvas.CreateOverlay("VfxCanvas", transform);
             canvas.sortingOrder = 10;
-            canvasObject.AddComponent<CanvasScaler>();
-            canvasObject.AddComponent<GraphicRaycaster>();
 
             GameObject textObject = new GameObject("ExecutionCallout");
             textObject.transform.SetParent(canvas.transform, false);

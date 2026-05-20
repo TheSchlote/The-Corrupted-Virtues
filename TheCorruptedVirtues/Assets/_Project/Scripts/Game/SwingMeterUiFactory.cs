@@ -50,13 +50,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private static Canvas CreateCanvas()
         {
-            GameObject canvasObject = new GameObject("SwingMeterCanvas");
-            Canvas canvas = canvasObject.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasObject.AddComponent<CanvasScaler>();
-            canvasObject.AddComponent<GraphicRaycaster>();
-
-            return canvas;
+            return UiCanvas.CreateOverlay("SwingMeterCanvas");
         }
 
         private static Slider CreateSlider(Transform parent)
@@ -64,9 +58,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             GameObject sliderObject = new GameObject("ExecutionSlider");
             sliderObject.transform.SetParent(parent, false);
 
+            // A slim band low on the screen, clear of the battlefield and
+            // above the HUD hint line (which sits at y 0.02-0.10).
             RectTransform rectTransform = sliderObject.AddComponent<RectTransform>();
-            rectTransform.anchorMin = new Vector2(0.1f, 0.6f);
-            rectTransform.anchorMax = new Vector2(0.9f, 0.7f);
+            rectTransform.anchorMin = new Vector2(0.30f, 0.15f);
+            rectTransform.anchorMax = new Vector2(0.70f, 0.19f);
             rectTransform.offsetMin = Vector2.zero;
             rectTransform.offsetMax = Vector2.zero;
 
@@ -107,7 +103,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             GameObject handleObject = new GameObject("Handle");
             handleObject.transform.SetParent(sliderObject.transform, false);
             RectTransform handleRect = handleObject.AddComponent<RectTransform>();
-            handleRect.sizeDelta = new Vector2(20.0f, 20.0f);
+            handleRect.sizeDelta = new Vector2(8.0f, 30.0f);
             Image handleImage = handleObject.AddComponent<Image>();
             handleImage.color = new Color(0.95f, 0.95f, 0.95f, 1.0f);
 
@@ -140,15 +136,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             GameObject textObject = new GameObject("SwingMeterText");
             textObject.transform.SetParent(parent, false);
 
+            // Caption sitting just above the slim meter. Font matches the HUD
+            // body text; the canvas scaler keeps it readable at any resolution.
             RectTransform rectTransform = textObject.AddComponent<RectTransform>();
-            rectTransform.anchorMin = new Vector2(0.1f, 0.1f);
-            rectTransform.anchorMax = new Vector2(0.9f, 0.5f);
+            rectTransform.anchorMin = new Vector2(0.30f, 0.20f);
+            rectTransform.anchorMax = new Vector2(0.70f, 0.255f);
             rectTransform.offsetMin = Vector2.zero;
             rectTransform.offsetMax = Vector2.zero;
 
             TMP_Text text = textObject.AddComponent<TextMeshProUGUI>();
-            text.fontSize = 24;
-            text.alignment = TextAlignmentOptions.TopLeft;
+            text.fontSize = 22;
+            text.alignment = TextAlignmentOptions.Center;
             text.text = "Swing meter ready.";
 
             return text;

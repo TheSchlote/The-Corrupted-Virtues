@@ -35,7 +35,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         public void PlayHitFlash()
         {
-            if (primitiveRenderer == null)
+            // Nothing to flash, and StartCoroutine throws on an inactive
+            // GameObject (e.g. a hidden, already-dead unit).
+            if (primitiveRenderer == null || !gameObject.activeInHierarchy)
             {
                 return;
             }
