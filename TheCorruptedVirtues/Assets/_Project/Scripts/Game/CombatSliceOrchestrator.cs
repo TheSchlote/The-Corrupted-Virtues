@@ -229,22 +229,24 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             UpdateOccupancy();
             currentPath.Clear();
-
-            // Once the active unit has moved this turn, hide the path
-            // preview entirely — only attack and End Turn remain, and a
-            // ghost path would just be misleading noise.
-            if (!hasMovedThisTurn)
-            {
-                List<GridCoord> path = GridPathfinderBfs.FindPath(
-                    activeUnit.Coord,
-                    cursor.CursorCoord,
-                    occupancy,
-                    grid.Bounds);
-                currentPath.AddRange(path);
-            }
+            List<GridCoord> path = GridPathfinderBfs.FindPath(
+                activeUnit.Coord,
+                cursor.CursorCoord,
+                occupancy,
+                grid.Bounds);
+            currentPath.AddRange(path);
 
             int totalSteps = GridMath.StepCount(currentPath);
             int reachableSteps = ComputeReachableSteps(currentPath);
+
+            // Once the active unit has moved this turn, the ghost path still
+            // shows so the player can see what they're hovering — but the
+            // whole thing renders as faded out-of-range gray (reachable
+            // segment is zero) since no further movement is possible.
+            if (hasMovedThisTurn)
+            {
+                reachableSteps = 0;
+            }
 
             events.RaisePathPreviewChanged(new PathPreviewEvent(currentPath, reachableSteps));
             RaiseSelection(cursor.CursorCoord, totalSteps, reachableSteps);
