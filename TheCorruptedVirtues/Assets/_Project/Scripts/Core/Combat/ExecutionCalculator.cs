@@ -24,7 +24,15 @@ namespace TheCorruptedVirtues.Combat
                 return ExecutionResult.Divine;
             }
 
-            if ((clampedValue >= HitMin && clampedValue < HitMax) || clampedValue > DivineMax)
+            // Overshoot past Divine = Miss. This is what makes Divine a real
+            // risk/reward call: you can't just hold late and drift into a
+            // free Hit on the other side — overshoot whiffs entirely.
+            if (clampedValue > DivineMax)
+            {
+                return ExecutionResult.Miss;
+            }
+
+            if (clampedValue >= HitMin && clampedValue < HitMax)
             {
                 return ExecutionResult.Hit;
             }

@@ -9,9 +9,14 @@ namespace TheCorruptedVirtues.Tests
     {
         private readonly ExecutionCalculator calc = new ExecutionCalculator();
 
-        // Pins the M2 slice 1 tighter Divine zone: [0.85, 0.92]. Boundary
-        // cases at 0.84 / 0.93 confirm the zone edges; the old wide-Divine
-        // values (0.80 / 0.95) now fall in Hit.
+        // Pins the M2 slice 1 zone layout:
+        //   Fumble  [0.00, 0.20)
+        //   Miss    [0.20, 0.40)  AND  (0.92, 1.00]  ← overshoot whiffs
+        //   Hit     [0.40, 0.85)
+        //   Divine  [0.85, 0.92]
+        // Boundary cases at 0.84 / 0.93 confirm the Divine edges; values
+        // past Divine (0.93, 0.95, 1.00) are now Miss instead of Hit so
+        // overshooting Divine is properly punished.
         [TestCase(0.00f, ExecutionResult.Fumble)]
         [TestCase(0.10f, ExecutionResult.Fumble)]
         [TestCase(0.19f, ExecutionResult.Fumble)]
@@ -22,16 +27,18 @@ namespace TheCorruptedVirtues.Tests
         [TestCase(0.84f, ExecutionResult.Hit)]
         [TestCase(0.85f, ExecutionResult.Divine)]
         [TestCase(0.92f, ExecutionResult.Divine)]
-        [TestCase(0.93f, ExecutionResult.Hit)]
-        [TestCase(0.95f, ExecutionResult.Hit)]
-        [TestCase(1.00f, ExecutionResult.Hit)]
+        [TestCase(0.93f, ExecutionResult.Miss)]
+        [TestCase(0.95f, ExecutionResult.Miss)]
+        [TestCase(1.00f, ExecutionResult.Miss)]
         public void Evaluate_ReturnsExpectedTier(float input, ExecutionResult expected)
         {
             Assert.That(calc.Evaluate(input), Is.EqualTo(expected));
         }
 
+        // Out-of-range inputs clamp to [0, 1] before evaluation. The high
+        // clamp now lands in the overshoot Miss zone (was Hit pre-tuning).
         [TestCase(-5.0f, ExecutionResult.Fumble)]
-        [TestCase(5.0f, ExecutionResult.Hit)]
+        [TestCase(5.0f, ExecutionResult.Miss)]
         public void Evaluate_ClampsOutOfRangeInput(float input, ExecutionResult expected)
         {
             Assert.That(calc.Evaluate(input), Is.EqualTo(expected));
