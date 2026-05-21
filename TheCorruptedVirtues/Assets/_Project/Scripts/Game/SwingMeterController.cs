@@ -16,7 +16,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private TMP_Text statusText;
 
         [Header("Timing")]
-        [SerializeField] private float cycleDurationSeconds = 2.0f;
+        // 1.0s cycle keeps the Divine zone visible for ~150ms, which is at
+        // the edge of human reaction time — Divine becomes a real "I nailed
+        // it" moment instead of the default outcome. Was 2.0s in M1; halved
+        // after the M2 slice 1 playtest reported consistent crits.
+        [SerializeField] private float cycleDurationSeconds = 1.0f;
         [SerializeField] private float hideAfterStopSeconds = 0.35f;
 
         [Header("Text")]
