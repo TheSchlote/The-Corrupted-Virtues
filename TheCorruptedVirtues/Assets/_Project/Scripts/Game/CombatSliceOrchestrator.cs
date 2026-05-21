@@ -29,6 +29,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private readonly GridOccupancy occupancy = new GridOccupancy();
         private readonly List<GridCoord> currentPath = new List<GridCoord>();
+        // Trail of the tiles the active unit walked this turn. Persists from
+        // OnPlayerMoveComplete until the turn ends or the slice resets so the
+        // ghost line shows where the player came from after moving.
+        private readonly List<GridCoord> moveTrail = new List<GridCoord>();
+        // Scratch buffer for the combined ghost path = trail + cursor path.
+        // Reused each UpdatePreview to avoid per-frame allocations.
+        private readonly List<GridCoord> ghostPathBuffer = new List<GridCoord>();
 
         private CombatEvents events;
         private GridPresenter grid;
@@ -239,17 +246,41 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             int totalSteps = GridMath.StepCount(currentPath);
             int reachableSteps = ComputeReachableSteps(currentPath);
 
-            // Once the active unit has moved this turn, the ghost path still
-            // shows so the player can see what they're hovering — but the
-            // whole thing renders as faded out-of-range gray (reachable
-            // segment is zero) since no further movement is possible.
+            // Post-move: render the ghost line — the trail the unit just
+            // walked (where you came from) optionally extended by the path to
+            // wherever the cursor is now (which is unreachable, since you've
+            // already moved). reachableSteps=0 → the whole thing is grey.
+            IReadOnlyList<GridCoord> renderedPath = currentPath;
             if (hasMovedThisTurn)
             {
                 reachableSteps = 0;
+                renderedPath = BuildGhostPath();
             }
 
-            events.RaisePathPreviewChanged(new PathPreviewEvent(currentPath, reachableSteps));
+            events.RaisePathPreviewChanged(new PathPreviewEvent(renderedPath, reachableSteps));
             RaiseSelection(cursor.CursorCoord, totalSteps, reachableSteps);
+        }
+
+        // Trail (where unit came from) ∪ currentPath (where cursor is now),
+        // deduping the shared midpoint (= unit's current position).
+        private IReadOnlyList<GridCoord> BuildGhostPath()
+        {
+            if (moveTrail.Count == 0)
+            {
+                return currentPath;
+            }
+
+            ghostPathBuffer.Clear();
+            ghostPathBuffer.AddRange(moveTrail);
+
+            // currentPath starts at activeUnit.Coord, which is the trail's
+            // last point. Skip it to avoid the duplicate.
+            for (int i = 1; i < currentPath.Count; i++)
+            {
+                ghostPathBuffer.Add(currentPath[i]);
+            }
+
+            return ghostPathBuffer;
         }
 
         // How many path edges the active unit can actually travel: bounded by
@@ -408,7 +439,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 truncated.Add(currentPath[i]);
             }
 
-            BeginMove(truncated, OnPlayerMoveComplete);
+            // Capture the path we're about to walk so OnPlayerMoveComplete
+            // can render it as the persistent ghost trail.
+            BeginMove(truncated, () => OnPlayerMoveComplete(truncated));
         }
 
         private void BeginPlayerAttack()
@@ -511,16 +544,27 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             onComplete?.Invoke();
         }
 
-        private void OnPlayerMoveComplete()
+        private void OnPlayerMoveComplete(IReadOnlyList<GridCoord> walkedPath)
         {
             hasMovedThisTurn = true;
 
-            // Snap the cursor to the unit's new position so the player has a
-            // natural starting point for deciding whether to attack or end.
-            if (cursor != null)
+            // Persist the walked path as the ghost trail. UpdatePreview will
+            // splice it together with the cursor's current targeting path so
+            // the player can see where they came from at a glance — and a
+            // partial move's out-of-range remainder also stays visible.
+            moveTrail.Clear();
+            if (walkedPath != null)
             {
-                cursor.Initialize(activeUnit.Coord);
+                for (int i = 0; i < walkedPath.Count; i++)
+                {
+                    moveTrail.Add(walkedPath[i]);
+                }
             }
+
+            // Don't snap the cursor — leaving it where the player aimed
+            // preserves the planning context (partial-move remainder stays
+            // visible) and the ghost trail handles the "where am I now?"
+            // question on its own.
 
             UpdatePreview();
         }
@@ -569,6 +613,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             hasMovedThisTurn = false;
             hasAttackedThisTurn = false;
+            moveTrail.Clear();
 
             if (cursor != null)
             {
@@ -584,6 +629,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             hasMovedThisTurn = false;
             hasAttackedThisTurn = false;
+            moveTrail.Clear();
             events.RaiseTurnChanged(Faction.Enemy);
             yield return new WaitForSeconds(0.1f);
 
