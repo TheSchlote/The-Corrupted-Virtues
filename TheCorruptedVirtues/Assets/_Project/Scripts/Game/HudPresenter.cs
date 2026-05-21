@@ -7,16 +7,23 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 {
     // Builds the combat HUD entirely in code and keeps it in sync from
     // events. No hand-wired canvas, no serialized text references.
+    //
+    // M2 slice 1: the per-side HP text rows were redundant with floating
+    // per-unit HP bars and didn't scale to squads. Replaced with a squad
+    // roster line (Player 2/2 · Enemy 1/2) computed from per-unit damage and
+    // death events.
     public sealed class HudPresenter : MonoBehaviour
     {
-        private readonly Dictionary<UnitId, Faction> unitFactions = new Dictionary<UnitId, Faction>();
-        private readonly Dictionary<Faction, int> hp = new Dictionary<Faction, int>();
-        private readonly Dictionary<Faction, int> maxHp = new Dictionary<Faction, int>();
+        private sealed class UnitState
+        {
+            public Faction Faction;
+            public bool IsAlive;
+        }
+
+        private readonly Dictionary<UnitId, UnitState> unitStates = new Dictionary<UnitId, UnitState>();
 
         private CombatEvents events;
-        private TMP_Text turnText;
-        private TMP_Text playerHpText;
-        private TMP_Text enemyHpText;
+        private TMP_Text squadText;
         private TMP_Text hintText;
         private TMP_Text outcomeText;
         private Image outcomePanel;
@@ -28,9 +35,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events = combatEvents;
             BuildCanvas();
 
-            events.TurnChanged += OnTurnChanged;
+            // "Whose turn is it?" is carried by the TurnOrderPresenter strip
+            // (highlighted active chip + faction badge), so HudPresenter no
+            // longer renders a "Turn: X" text — would be redundant.
             events.UnitSpawned += OnUnitSpawned;
             events.UnitDamaged += OnUnitDamaged;
+            events.UnitDied += OnUnitDied;
             events.SelectionChanged += OnSelectionChanged;
             events.DamageEstimateChanged += OnDamageEstimateChanged;
             events.CombatEnded += OnCombatEnded;
@@ -44,38 +54,39 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            events.TurnChanged -= OnTurnChanged;
             events.UnitSpawned -= OnUnitSpawned;
             events.UnitDamaged -= OnUnitDamaged;
+            events.UnitDied -= OnUnitDied;
             events.SelectionChanged -= OnSelectionChanged;
             events.DamageEstimateChanged -= OnDamageEstimateChanged;
             events.CombatEnded -= OnCombatEnded;
             events.CombatReset -= OnCombatReset;
         }
 
-        private void OnTurnChanged(Faction active)
-        {
-            if (turnText != null)
-            {
-                turnText.text = active == Faction.Player ? "Turn: Player" : "Turn: Enemy";
-            }
-        }
-
         private void OnUnitSpawned(UnitSpawnedEvent e)
         {
-            unitFactions[e.Id] = e.Faction;
-            hp[e.Faction] = e.Hp;
-            maxHp[e.Faction] = e.MaxHp;
-            RefreshHp();
+            unitStates[e.Id] = new UnitState { Faction = e.Faction, IsAlive = e.Hp > 0 };
+            RefreshSquadCounts();
         }
 
         private void OnUnitDamaged(UnitDamagedEvent e)
         {
-            if (unitFactions.TryGetValue(e.Id, out Faction faction))
+            // Death detection happens via UnitDied; UnitDamaged only updates
+            // alive status when hp hits zero (the orchestrator fires UnitDied
+            // right after, but updating here is harmless and idempotent).
+            if (unitStates.TryGetValue(e.Id, out UnitState state))
             {
-                hp[faction] = e.Hp;
-                maxHp[faction] = e.MaxHp;
-                RefreshHp();
+                state.IsAlive = e.Hp > 0;
+                RefreshSquadCounts();
+            }
+        }
+
+        private void OnUnitDied(UnitId id)
+        {
+            if (unitStates.TryGetValue(id, out UnitState state))
+            {
+                state.IsAlive = false;
+                RefreshSquadCounts();
             }
         }
 
@@ -119,10 +130,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             string hex = ColorUtility.ToHtmlStringRGB(matchupColor);
-
-            // Three-line readout: which attack, which QTE type, then the
-            // damage + element matchup. The attack/QTE line was the M1.5
-            // playtest gap — players couldn't tell what they were committing to.
             string attackLine = string.IsNullOrEmpty(e.AttackName) ? string.Empty : e.AttackName;
             string qteLine = string.IsNullOrEmpty(e.QteName) ? string.Empty : e.QteName;
             string header = !string.IsNullOrEmpty(attackLine) && !string.IsNullOrEmpty(qteLine)
@@ -149,10 +156,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 outcomePanel.gameObject.SetActive(true);
             }
 
-            // No more selection or estimate events fire once combat is over,
-            // so the last action hint ("Confirm: Stop Swing") and the last
-            // damage forecast would linger otherwise. Same for the persistent
-            // End Turn hint — Tab is meaningless once combat is over.
             if (hintText != null)
             {
                 hintText.text = string.Empty;
@@ -171,10 +174,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void OnCombatReset()
         {
-            unitFactions.Clear();
-            hp.Clear();
-            maxHp.Clear();
-            RefreshHp();
+            unitStates.Clear();
+            RefreshSquadCounts();
             if (hintText != null)
             {
                 hintText.text = string.Empty;
@@ -201,48 +202,52 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
-        private void RefreshHp()
+        private void RefreshSquadCounts()
         {
-            if (playerHpText != null)
+            if (squadText == null)
             {
-                playerHpText.text = $"Player HP: {Hp(Faction.Player)}/{MaxHp(Faction.Player)}";
+                return;
             }
 
-            if (enemyHpText != null)
+            int playerAlive = 0;
+            int playerTotal = 0;
+            int enemyAlive = 0;
+            int enemyTotal = 0;
+            foreach (UnitState state in unitStates.Values)
             {
-                enemyHpText.text = $"Enemy HP: {Hp(Faction.Enemy)}/{MaxHp(Faction.Enemy)}";
+                if (state.Faction == Faction.Player)
+                {
+                    playerTotal++;
+                    if (state.IsAlive) playerAlive++;
+                }
+                else
+                {
+                    enemyTotal++;
+                    if (state.IsAlive) enemyAlive++;
+                }
             }
+
+            squadText.text = $"Player {playerAlive}/{playerTotal}  ·  Enemy {enemyAlive}/{enemyTotal}";
         }
-
-        private int Hp(Faction f) => hp.TryGetValue(f, out int v) ? v : 0;
-        private int MaxHp(Faction f) => maxHp.TryGetValue(f, out int v) ? v : 0;
 
         private void BuildCanvas()
         {
             Canvas canvas = UiCanvas.CreateOverlay("HudCanvas", transform);
 
-            turnText = CreateText(canvas.transform, "TurnText", new Vector2(0.02f, 0.92f), new Vector2(0.4f, 0.99f), "Turn: Player");
-            playerHpText = CreateText(canvas.transform, "PlayerHpText", new Vector2(0.02f, 0.85f), new Vector2(0.4f, 0.92f), "Player HP: -");
-            enemyHpText = CreateText(canvas.transform, "EnemyHpText", new Vector2(0.02f, 0.78f), new Vector2(0.4f, 0.85f), "Enemy HP: -");
+            squadText = CreateText(canvas.transform, "SquadText", new Vector2(0.02f, 0.92f), new Vector2(0.4f, 0.99f), "Player -/-  ·  Enemy -/-");
             hintText = CreateText(canvas.transform, "HintText", new Vector2(0.3f, 0.02f), new Vector2(0.7f, 0.1f), string.Empty);
             hintText.alignment = TextAlignmentOptions.Center;
 
-            // Persistent corner hint so End Turn is discoverable without
-            // hunting through a menu. Muted; not meant to grab focus.
             endTurnHintText = CreateText(canvas.transform, "EndTurnHintText", new Vector2(0.75f, 0.02f), new Vector2(0.98f, 0.07f), "Tab: End Turn");
             endTurnHintText.alignment = TextAlignmentOptions.BottomRight;
             endTurnHintText.fontSize = 18;
             endTurnHintText.color = new Color(0.85f, 0.85f, 0.85f, 0.85f);
 
-            // Damage forecast lives in the top-right — the Gladius-style
-            // "1.0x estimate + critical upside" readout fires only when the
-            // cursor is over a valid attack target. Taller now to fit the
-            // attack name + QTE-type line above the damage.
-            damageInfoText = CreateText(canvas.transform, "DamageInfoText", new Vector2(0.55f, 0.79f), new Vector2(0.98f, 0.99f), string.Empty);
+            // Damage forecast lives in the top-right, below the turn-order
+            // strip that sits at the very top (built by TurnOrderPresenter).
+            damageInfoText = CreateText(canvas.transform, "DamageInfoText", new Vector2(0.55f, 0.72f), new Vector2(0.98f, 0.86f), string.Empty);
             damageInfoText.alignment = TextAlignmentOptions.TopRight;
 
-            // VICTORY/DEFEAT outcome — panel + text together, panel created
-            // first so it draws behind the text. Hidden until CombatEnded.
             outcomePanel = CreatePanel(canvas.transform, "OutcomePanel", new Vector2(0.2f, 0.38f), new Vector2(0.8f, 0.62f), new Color(0f, 0f, 0f, 0.7f));
             outcomePanel.gameObject.SetActive(false);
 

@@ -14,6 +14,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private IUnitViewFactory factory;
         private UnitId activeDamagePreviewTarget;
         private bool damagePreviewActive;
+        private UnitId activeUnit;
+        private bool hasActiveUnit;
 
         public void Initialize(CombatEvents combatEvents, GridPresenter gridPresenter, IUnitViewFactory viewFactory)
         {
@@ -26,6 +28,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitDamaged += OnUnitDamaged;
             events.UnitDied += OnUnitDied;
             events.DamageEstimateChanged += OnDamageEstimateChanged;
+            events.ActiveUnitChanged += OnActiveUnitChanged;
             events.CombatReset += OnCombatReset;
         }
 
@@ -41,6 +44,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitDamaged -= OnUnitDamaged;
             events.UnitDied -= OnUnitDied;
             events.DamageEstimateChanged -= OnDamageEstimateChanged;
+            events.ActiveUnitChanged -= OnActiveUnitChanged;
             events.CombatReset -= OnCombatReset;
         }
 
@@ -111,6 +115,25 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        private void OnActiveUnitChanged(UnitId id)
+        {
+            // Clear the previous active indicator first; toggle the new one.
+            // Works even if a unit died on its own turn — its view is hidden,
+            // but turning off the indicator is harmless.
+            if (hasActiveUnit && views.TryGetValue(activeUnit, out IUnitView previousActive))
+            {
+                previousActive.SetActiveIndicator(false);
+            }
+
+            activeUnit = id;
+            hasActiveUnit = true;
+
+            if (views.TryGetValue(id, out IUnitView newActive))
+            {
+                newActive.SetActiveIndicator(true);
+            }
+        }
+
         private void OnCombatReset()
         {
             foreach (IUnitView view in views.Values)
@@ -120,6 +143,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             views.Clear();
             damagePreviewActive = false;
+            hasActiveUnit = false;
         }
 
         private void ClearActiveDamagePreview()

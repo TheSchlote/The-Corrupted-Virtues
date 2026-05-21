@@ -26,6 +26,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             presentation.AddComponent<UnitViewPresenter>().Initialize(events, grid, unitFactory);
             presentation.AddComponent<GridViewPresenter>().Initialize(events, grid, cursorRenderer, pathPreview);
             presentation.AddComponent<HudPresenter>().Initialize(events);
+            presentation.AddComponent<TurnOrderPresenter>().Initialize(events);
             presentation.AddComponent<VfxPresenter>().Initialize(events);
 
             CombatSliceOrchestrator orchestrator =
