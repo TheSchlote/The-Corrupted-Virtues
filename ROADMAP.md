@@ -134,7 +134,18 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] **Re-playtest** the second iteration — signed off 2026-05-21. Remaining wants (unit animations, formalized UI system) deferred to M3+ because both are asset-coupled and wait for the art decision.
 
 ### M2 — Real Combat _(depth, still placeholders)_
-- [ ] Squads (multiple units/side); Speed-based turn order **+ turn-order UI** (so the player can plan around upcoming enemy turns — Gladius pattern)
+
+**Slice 1 — Squads + Speed-based turn order + turn-order UI** ✅ _shipped on `feature/m2-squads-turn-order` (2026-05-21)_
+- [x] 2v2 squads with four distinct elements (Player: Light + Fire / Enemy: Dark + Water — surfaces 4 matchups in one fight)
+- [x] Pure-C# `TurnOrder` with deterministic Speed-based ordering (lower Id breaks ties); 7 EditMode tests pinning the rule
+- [x] Per-unit turn lifecycle (move + attack + end, same as M1.5 but per unit instead of per side)
+- [x] Round-robin queue with new round when current empties
+- [x] Turn-order UI strip (top of screen, chips coloured by element with faction badge; active chip highlighted)
+- [x] Active-unit indicator (faint coloured disc under the unit whose turn it is)
+- [x] HUD refactor: per-side HP text replaced with squad-roster line; redundant "Turn: X" text dropped (the active chip carries it)
+- [x] Enemy AI per unit: nearest-living-player heuristic, same move+attack rule as player
+- [x] Win condition: faction wipe (all of one side dead → other side wins)
+
 - [ ] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE)
 - [ ] **Pulled forward from M3:** grid elevation/terrain (high ground bonus). Identified in the M1 playtest as a fun-prerequisite — needed in M2 so positioning becomes a real choice.
 - [ ] **Facing / flanking:** unit facing + back/side attack modifiers; facing arrow indicator. (New from M1 playtest — direct Gladius ask.)

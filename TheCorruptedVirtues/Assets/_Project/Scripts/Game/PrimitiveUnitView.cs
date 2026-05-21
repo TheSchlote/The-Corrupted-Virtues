@@ -21,6 +21,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private Transform hpBarRoot;
         private Transform hpBarFill;
         private Transform hpBarPreview;
+        private Transform activeIndicator;
         private Camera billboardCamera;
 
         private int cachedCurrentHp;
@@ -32,6 +33,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             baseColor = color;
             ViewMaterials.SetColor(primitiveRenderer, color);
             BuildHpBar();
+            BuildActiveIndicator();
         }
 
         public void Warp(Vector3 world)
@@ -101,6 +103,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (hpBarPreview != null)
             {
                 hpBarPreview.gameObject.SetActive(false);
+            }
+        }
+
+        public void SetActiveIndicator(bool active)
+        {
+            if (activeIndicator != null)
+            {
+                activeIndicator.gameObject.SetActive(active);
             }
         }
 
@@ -213,6 +223,40 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private static float Ratio(int current, int max)
         {
             return max > 0 ? Mathf.Clamp01((float)current / max) : 0f;
+        }
+
+        private void BuildActiveIndicator()
+        {
+            // A flat disc-ish quad just above the ground, larger than the
+            // unit footprint, tinted with the unit's element colour. Visible
+            // only when SetActiveIndicator(true) — gives an at-a-glance "it's
+            // this unit's turn" cue without depending on real assets.
+            GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = "ActiveIndicator";
+            quad.transform.SetParent(transform, false);
+            // Quad default normal is +Z. Rotating -90 around X tilts it so
+            // the visible face points up (+Y) — readable from the tactical
+            // camera which looks down.
+            quad.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            quad.transform.localScale = new Vector3(1.8f, 1.8f, 1f);
+            quad.transform.localPosition = new Vector3(0f, -0.49f, 0f);
+
+            Collider quadCollider = quad.GetComponent<Collider>();
+            if (quadCollider != null)
+            {
+                Destroy(quadCollider);
+            }
+
+            Renderer quadRenderer = quad.GetComponent<Renderer>();
+            // Brighter than the body colour so it pops, but transparent-ish
+            // feel via desaturation toward white.
+            Color tint = Color.Lerp(baseColor, Color.white, 0.45f);
+            quadRenderer.material = ViewMaterials.CreateColored(tint);
+            quadRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            quadRenderer.receiveShadows = false;
+
+            activeIndicator = quad.transform;
+            activeIndicator.gameObject.SetActive(false);
         }
 
         private Transform CreateBarQuad(string objectName, Transform parent, float width, Color color, float localOffsetZ)

@@ -10,6 +10,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
     // The combat loop's logic owner. It manipulates only logical state and
     // announces what happened through CombatEvents — it never touches a
     // GameObject, transform, renderer or UI element. Presenters do that.
+    //
+    // M2 slice 1: squads + Speed-based interleaved turn order. The single
+    // player/enemy fields are gone; the orchestrator now owns a list of all
+    // units, builds a per-round queue (highest Speed first, ties by lower
+    // Id), and walks one unit's turn at a time. Combat ends when either
+    // faction has no living units.
     public sealed class CombatSliceOrchestrator : MonoBehaviour
     {
         private sealed class CombatUnit
@@ -25,17 +31,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             public int MoveRange;
 
             public int MaxHp => Stats.MaxHP;
+            public bool IsAlive => Hp > 0;
         }
 
         private readonly GridOccupancy occupancy = new GridOccupancy();
         private readonly List<GridCoord> currentPath = new List<GridCoord>();
-        // Trail of the tiles the active unit walked this turn. Persists from
-        // OnPlayerMoveComplete until the turn ends or the slice resets so the
-        // ghost line shows where the player came from after moving.
         private readonly List<GridCoord> moveTrail = new List<GridCoord>();
-        // Scratch buffer for the combined ghost path = trail + cursor path.
-        // Reused each UpdatePreview to avoid per-frame allocations.
         private readonly List<GridCoord> ghostPathBuffer = new List<GridCoord>();
+
+        private readonly List<CombatUnit> allUnits = new List<CombatUnit>();
+        private readonly Queue<CombatUnit> roundQueue = new Queue<CombatUnit>();
+        private readonly List<TurnOrderEntry> turnOrderEntriesBuffer = new List<TurnOrderEntry>();
+        private readonly List<UnitId> upcomingBuffer = new List<UnitId>();
 
         private CombatEvents events;
         private GridPresenter grid;
@@ -44,21 +51,19 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private float moveStepDelaySeconds = 0.15f;
 
-        private CombatUnit player;
-        private CombatUnit enemy;
         private CombatUnit activeUnit;
-        private CombatUnit otherUnit;
-        private bool isPlayerTurn = true;
+        private CombatUnit currentAttackTarget;
         private bool isMoving;
         private bool isAwaitingSwingStop;
         private bool isCombatOver;
         private bool started;
 
-        // Gladius-style turn structure: each turn the active unit can move
-        // (optional), attack (optional), then ends turn. After moving the
-        // player still controls until they attack or press End Turn.
+        // Per-turn (per-unit, M2) flags.
         private bool hasMovedThisTurn;
         private bool hasAttackedThisTurn;
+
+        // How far back in the upcoming-turns list to broadcast.
+        private const int UpcomingTurnsToShow = 6;
 
         public void Initialize(
             CombatEvents combatEvents,
@@ -73,63 +78,67 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             swingMeter = executionMeter;
             moveStepDelaySeconds = moveStepDelay;
 
-            // Symmetric stat block — same shell for both sides, so the
-            // matchup the player feels is the element/QTE/positioning axis
-            // (the actual M1.5 deliverables) rather than stat asymmetry.
-            // Tuning is M2 work; numbers picked so a Hit reads ~17 dmg and a
-            // Divine reads ~26 dmg under the canonical Light↔Dark advantage.
-            CombatStats sharedStats = new CombatStats(
-                maxHP: 100,
-                maxMP: 0,
-                attack: 15,
-                defense: 80,
-                specialAttack: 0,
-                specialDefense: 80,
-                speed: 10);
+            BuildSquads();
 
-            player = new CombatUnit
-            {
-                Id = new UnitId(1),
-                Faction = Faction.Player,
-                Coord = new GridCoord(1, 1),
-                SpawnCoord = new GridCoord(1, 1),
-                Stats = sharedStats,
-                Element = ElementType.Light,
-                BasicAttack = new AbilitySpec(
-                    name: "Radiant Cleave",
-                    kind: AbilityKind.Physical,
-                    element: ElementType.Light,
-                    power: 10,
-                    scaling: 1.0f),
-                MoveRange = 4
-            };
-            player.Hp = player.MaxHp;
-
-            enemy = new CombatUnit
-            {
-                Id = new UnitId(2),
-                Faction = Faction.Enemy,
-                Coord = new GridCoord(6, 6),
-                SpawnCoord = new GridCoord(6, 6),
-                Stats = sharedStats,
-                Element = ElementType.Dark,
-                BasicAttack = new AbilitySpec(
-                    name: "Corruption Strike",
-                    kind: AbilityKind.Physical,
-                    element: ElementType.Dark,
-                    power: 10,
-                    scaling: 1.0f),
-                MoveRange = 4
-            };
-            enemy.Hp = enemy.MaxHp;
-
-            // Units are spawned by ResetSliceState (after CombatReset) — emit
-            // the grid, then let the reset path do the single authoritative
-            // spawn so views aren't created, destroyed and recreated.
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
 
             started = true;
             ResetSliceState();
+        }
+
+        // 2v2 squads with four distinct elements so a single fight surfaces
+        // multiple matchups (Light↔Dark mutual STRONG, Fire↔Water STRONG one
+        // direction, plus the neutral cross-pairs). Spawn data is hardcoded
+        // here for M2 slice 1; ScriptableObjects come later.
+        private void BuildSquads()
+        {
+            allUnits.Clear();
+
+            CombatStats fastBlock = new CombatStats(
+                maxHP: 90, maxMP: 0,
+                attack: 16, defense: 70,
+                specialAttack: 0, specialDefense: 70,
+                speed: 14);
+            CombatStats sturdyBlock = new CombatStats(
+                maxHP: 110, maxMP: 0,
+                attack: 14, defense: 90,
+                specialAttack: 0, specialDefense: 90,
+                speed: 8);
+
+            allUnits.Add(MakeUnit(
+                id: 1, faction: Faction.Player, coord: new GridCoord(1, 1),
+                stats: fastBlock, element: ElementType.Light,
+                attackName: "Radiant Cleave"));
+            allUnits.Add(MakeUnit(
+                id: 2, faction: Faction.Player, coord: new GridCoord(1, 3),
+                stats: sturdyBlock, element: ElementType.Fire,
+                attackName: "Ember Strike"));
+
+            allUnits.Add(MakeUnit(
+                id: 3, faction: Faction.Enemy, coord: new GridCoord(6, 6),
+                stats: fastBlock, element: ElementType.Dark,
+                attackName: "Corruption Strike"));
+            allUnits.Add(MakeUnit(
+                id: 4, faction: Faction.Enemy, coord: new GridCoord(6, 4),
+                stats: sturdyBlock, element: ElementType.Water,
+                attackName: "Tidal Slash"));
+        }
+
+        private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, string attackName)
+        {
+            CombatUnit unit = new CombatUnit
+            {
+                Id = new UnitId(id),
+                Faction = faction,
+                Coord = coord,
+                SpawnCoord = coord,
+                Stats = stats,
+                Element = element,
+                BasicAttack = new AbilitySpec(attackName, AbilityKind.Physical, element, power: 10, scaling: 1.0f),
+                MoveRange = 4
+            };
+            unit.Hp = unit.MaxHp;
+            return unit;
         }
 
         private void Update()
@@ -145,8 +154,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // Combat is over until reset: ignore movement, attacks and the
-            // swing meter so a fallen unit can't be acted on or against.
             if (isCombatOver)
             {
                 return;
@@ -167,11 +174,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // End Turn input — player can skip remaining actions (e.g. moved
-            // adjacent but doesn't want to attack yet).
-            if (isPlayerTurn && GameInput.Current.EndTurnPressed)
+            // End Turn is per-unit now: the active unit's turn ends and the
+            // next unit in Speed order acts.
+            if (IsPlayerTurn && GameInput.Current.EndTurnPressed)
             {
-                EndTurn();
+                EndUnitTurn();
                 return;
             }
 
@@ -186,45 +193,203 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        private bool IsPlayerTurn => activeUnit != null && activeUnit.Faction == Faction.Player;
+
         private void ResetSliceState()
         {
             isMoving = false;
             isAwaitingSwingStop = false;
             isCombatOver = false;
+            currentAttackTarget = null;
             swingMeter?.Cancel();
 
-            player.Coord = player.SpawnCoord;
-            enemy.Coord = enemy.SpawnCoord;
-            player.Hp = player.MaxHp;
-            enemy.Hp = enemy.MaxHp;
-
-            events.RaiseCombatReset();
-            events.RaiseUnitSpawned(new UnitSpawnedEvent(player.Id, player.Faction, player.Element, player.Coord, player.Hp, player.MaxHp));
-            events.RaiseUnitSpawned(new UnitSpawnedEvent(enemy.Id, enemy.Faction, enemy.Element, enemy.Coord, enemy.Hp, enemy.MaxHp));
-
-            isPlayerTurn = true;
-            SetActiveUnit(player, enemy);
-
-            if (cursor != null)
+            foreach (CombatUnit unit in allUnits)
             {
-                cursor.IsLocked = false;
-                cursor.Initialize(activeUnit.Coord);
+                unit.Coord = unit.SpawnCoord;
+                unit.Hp = unit.MaxHp;
             }
 
-            BeginPlayerTurn();
+            events.RaiseCombatReset();
+            foreach (CombatUnit unit in allUnits)
+            {
+                events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp));
+            }
+
+            StartNewRound();
+            BeginUnitTurn();
         }
 
-        private void SetActiveUnit(CombatUnit active, CombatUnit other)
+        private void StartNewRound()
         {
-            activeUnit = active;
-            otherUnit = other;
+            roundQueue.Clear();
+            turnOrderEntriesBuffer.Clear();
+            for (int i = 0; i < allUnits.Count; i++)
+            {
+                CombatUnit u = allUnits[i];
+                turnOrderEntriesBuffer.Add(new TurnOrderEntry(u.Id.Value, u.Stats.Speed, u.IsAlive));
+            }
+
+            List<int> order = TurnOrder.ComputeRound(turnOrderEntriesBuffer);
+            for (int i = 0; i < order.Count; i++)
+            {
+                CombatUnit unit = FindUnitById(order[i]);
+                if (unit != null)
+                {
+                    roundQueue.Enqueue(unit);
+                }
+            }
+        }
+
+        private CombatUnit FindUnitById(int id)
+        {
+            for (int i = 0; i < allUnits.Count; i++)
+            {
+                if (allUnits[i].Id.Value == id)
+                {
+                    return allUnits[i];
+                }
+            }
+            return null;
+        }
+
+        private CombatUnit GetUnitAt(GridCoord coord)
+        {
+            for (int i = 0; i < allUnits.Count; i++)
+            {
+                CombatUnit u = allUnits[i];
+                if (u.IsAlive && u.Coord == coord)
+                {
+                    return u;
+                }
+            }
+            return null;
         }
 
         private void UpdateOccupancy()
         {
             occupancy.Clear();
-            occupancy.Add(player.Coord);
-            occupancy.Add(enemy.Coord);
+            for (int i = 0; i < allUnits.Count; i++)
+            {
+                CombatUnit u = allUnits[i];
+                if (u.IsAlive)
+                {
+                    occupancy.Add(u.Coord);
+                }
+            }
+        }
+
+        // Per-unit turn lifecycle: pull the next living unit from the round
+        // queue (rebuilding if empty), then start its turn.
+        private void BeginUnitTurn()
+        {
+            if (isCombatOver)
+            {
+                return;
+            }
+
+            // Find next living unit; skip dead entries (they were alive when
+            // the round was built but died before their turn came up).
+            while (roundQueue.Count > 0 && !roundQueue.Peek().IsAlive)
+            {
+                roundQueue.Dequeue();
+            }
+
+            if (roundQueue.Count == 0)
+            {
+                StartNewRound();
+                while (roundQueue.Count > 0 && !roundQueue.Peek().IsAlive)
+                {
+                    roundQueue.Dequeue();
+                }
+
+                if (roundQueue.Count == 0)
+                {
+                    // No living units of either faction — shouldn't normally
+                    // happen since CheckWinCondition would have fired first.
+                    return;
+                }
+            }
+
+            activeUnit = roundQueue.Dequeue();
+            hasMovedThisTurn = false;
+            hasAttackedThisTurn = false;
+            moveTrail.Clear();
+
+            events.RaiseActiveUnitChanged(activeUnit.Id);
+            events.RaiseTurnChanged(activeUnit.Faction);
+            RaiseTurnOrderUpdate();
+
+            if (IsPlayerTurn)
+            {
+                if (cursor != null)
+                {
+                    cursor.IsLocked = false;
+                    cursor.Initialize(activeUnit.Coord);
+                }
+                UpdatePreview();
+            }
+            else
+            {
+                if (cursor != null)
+                {
+                    cursor.IsLocked = true;
+                }
+                events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
+                events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                StartCoroutine(HandleEnemyTurn());
+            }
+        }
+
+        private void RaiseTurnOrderUpdate()
+        {
+            upcomingBuffer.Clear();
+
+            // Active unit first.
+            if (activeUnit != null && activeUnit.IsAlive)
+            {
+                upcomingBuffer.Add(activeUnit.Id);
+            }
+
+            // Then the rest of the current round (living only).
+            foreach (CombatUnit u in roundQueue)
+            {
+                if (upcomingBuffer.Count >= UpcomingTurnsToShow) break;
+                if (u.IsAlive)
+                {
+                    upcomingBuffer.Add(u.Id);
+                }
+            }
+
+            // Fill remaining slots from the start of the *next* round so the
+            // strip doesn't shrink at the end of a round.
+            if (upcomingBuffer.Count < UpcomingTurnsToShow)
+            {
+                turnOrderEntriesBuffer.Clear();
+                for (int i = 0; i < allUnits.Count; i++)
+                {
+                    CombatUnit u = allUnits[i];
+                    turnOrderEntriesBuffer.Add(new TurnOrderEntry(u.Id.Value, u.Stats.Speed, u.IsAlive));
+                }
+                List<int> nextRound = TurnOrder.ComputeRound(turnOrderEntriesBuffer);
+                for (int i = 0; i < nextRound.Count; i++)
+                {
+                    if (upcomingBuffer.Count >= UpcomingTurnsToShow) break;
+                    CombatUnit u = FindUnitById(nextRound[i]);
+                    if (u != null) upcomingBuffer.Add(u.Id);
+                }
+            }
+
+            events.RaiseTurnOrderChanged(upcomingBuffer);
+        }
+
+        private void EndUnitTurn()
+        {
+            if (isCombatOver)
+            {
+                return;
+            }
+
+            BeginUnitTurn();
         }
 
         private void UpdatePreview()
@@ -246,10 +411,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             int totalSteps = GridMath.StepCount(currentPath);
             int reachableSteps = ComputeReachableSteps(currentPath);
 
-            // Post-move: render the ghost line — the trail the unit just
-            // walked (where you came from) optionally extended by the path to
-            // wherever the cursor is now (which is unreachable, since you've
-            // already moved). reachableSteps=0 → the whole thing is grey.
             IReadOnlyList<GridCoord> renderedPath = currentPath;
             if (hasMovedThisTurn)
             {
@@ -261,8 +422,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             RaiseSelection(cursor.CursorCoord, totalSteps, reachableSteps);
         }
 
-        // Trail (where unit came from) ∪ currentPath (where cursor is now),
-        // deduping the shared midpoint (= unit's current position).
         private IReadOnlyList<GridCoord> BuildGhostPath()
         {
             if (moveTrail.Count == 0)
@@ -272,21 +431,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             ghostPathBuffer.Clear();
             ghostPathBuffer.AddRange(moveTrail);
-
-            // currentPath starts at activeUnit.Coord, which is the trail's
-            // last point. Skip it to avoid the duplicate.
             for (int i = 1; i < currentPath.Count; i++)
             {
                 ghostPathBuffer.Add(currentPath[i]);
             }
-
             return ghostPathBuffer;
         }
 
-        // How many path edges the active unit can actually travel: bounded by
-        // MoveRange and by "don't end on a tile occupied by another unit"
-        // (pathfinder allows the goal to be occupied, but we mustn't step
-        // onto it — e.g. cursor on the enemy from a distance).
         private int ComputeReachableSteps(IReadOnlyList<GridCoord> path)
         {
             if (path == null || path.Count <= 1)
@@ -309,15 +460,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void RaiseSelection(GridCoord cursorCoord, int totalSteps, int reachableSteps)
         {
             UpdateOccupancy();
-            bool occupied = occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
-            // "MoveValid" now includes targets beyond MoveRange — confirming
-            // executes a partial move that stops at MoveRange (Gladius/XCOM
-            // pattern). The path preview's faded out-of-range segment makes
-            // the truncation point unmistakable.
+            CombatUnit targetUnit = GetUnitAt(cursorCoord);
+            bool isEnemyTarget = targetUnit != null && targetUnit.Faction != activeUnit.Faction;
+            bool occupiedByOther = occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
             bool reachable = reachableSteps > 0 && !hasMovedThisTurn;
             bool canAttack = !hasAttackedThisTurn
-                && cursorCoord == otherUnit.Coord
-                && GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord) == 1;
+                && isEnemyTarget
+                && GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord) == 1;
 
             SelectionState state;
             string hint;
@@ -326,7 +475,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 state = SelectionState.AttackValid;
                 hint = "Confirm: Attack";
             }
-            else if (reachable && !occupied)
+            else if (reachable && !occupiedByOther)
             {
                 state = SelectionState.MoveValid;
                 hint = totalSteps > reachableSteps
@@ -345,39 +494,35 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursorCoord, state, hint));
-            RaiseDamageEstimate(state);
+            RaiseDamageEstimate(state, targetUnit);
         }
 
-        private void RaiseDamageEstimate(SelectionState state)
+        private void RaiseDamageEstimate(SelectionState state, CombatUnit targetUnit)
         {
-            if (state != SelectionState.AttackValid)
+            if (state != SelectionState.AttackValid || targetUnit == null)
             {
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
                 return;
             }
 
-            // Cheapest call into the real pipeline: ask DamageCalculator for
-            // the Hit (1.0x) and Divine (1.5x) outcomes so the HUD can show
-            // "DMG 17 (Divine 26)" — the Gladius pattern of "1.0x estimate +
-            // critical upside" with the element multiplier baked in already.
             DamageBreakdown hit = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
-                otherUnit.Stats, otherUnit.Element,
+                targetUnit.Stats, targetUnit.Element,
                 activeUnit.BasicAttack, ExecutionResult.Hit);
 
             DamageBreakdown divine = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
-                otherUnit.Stats, otherUnit.Element,
+                targetUnit.Stats, targetUnit.Element,
                 activeUnit.BasicAttack, ExecutionResult.Divine);
 
             string qteName = swingMeter != null ? swingMeter.DisplayName : string.Empty;
 
             events.RaiseDamageEstimateChanged(new DamageEstimateEvent(
-                otherUnit.Id,
+                targetUnit.Id,
                 hit.FinalDamage,
                 divine.FinalDamage,
                 activeUnit.BasicAttack.Element,
-                otherUnit.Element,
+                targetUnit.Element,
                 hit.ElementMultiplier,
                 activeUnit.BasicAttack.Name,
                 qteName));
@@ -385,29 +530,22 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void HandleConfirm()
         {
-            if (activeUnit == null || otherUnit == null || cursor == null)
+            if (activeUnit == null || cursor == null)
             {
                 return;
             }
 
             GridCoord target = cursor.CursorCoord;
-            int distance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
+            CombatUnit targetUnit = GetUnitAt(target);
+            bool isEnemyTarget = targetUnit != null && targetUnit.Faction != activeUnit.Faction;
+            int distance = targetUnit != null
+                ? GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord)
+                : -1;
 
-            if (target == otherUnit.Coord && distance == 1 && !hasAttackedThisTurn)
+            if (isEnemyTarget && distance == 1 && !hasAttackedThisTurn)
             {
-                if (isPlayerTurn)
-                {
-                    BeginPlayerAttack();
-                }
-                else
-                {
-                    // Enemy doesn't QTE — treat as a baseline Hit. Enemy AI
-                    // uses ResolveEnemyAction, not this branch, so this is
-                    // defensive only.
-                    ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
-                    EndTurn();
-                }
-
+                currentAttackTarget = targetUnit;
+                BeginPlayerAttack();
                 return;
             }
 
@@ -422,10 +560,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // Truncate path at MoveRange so the player can target far and
-            // see the move stop at the reach limit. ComputeReachableSteps also
-            // handles "cursor is on the enemy from far away" — stops one short
-            // of the occupied destination.
             int reachableSteps = ComputeReachableSteps(currentPath);
             if (reachableSteps <= 0)
             {
@@ -439,8 +573,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 truncated.Add(currentPath[i]);
             }
 
-            // Capture the path we're about to walk so OnPlayerMoveComplete
-            // can render it as the persistent ghost trail.
             BeginMove(truncated, () => OnPlayerMoveComplete(truncated));
         }
 
@@ -448,9 +580,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             if (swingMeter == null || !swingMeter.IsAvailable)
             {
-                // No QTE available — fall through with a baseline Hit.
-                ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
-                EndTurn();
+                ResolveAttack(activeUnit, currentAttackTarget, ExecutionResult.Hit);
+                currentAttackTarget = null;
+                EndUnitTurn();
                 return;
             }
 
@@ -492,9 +624,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ExecutionResult tier = swingMeter.StopAndEvaluate(out float multiplier, out _);
             events.RaiseExecutionGraded(new ExecutionGradedEvent(tier, multiplier));
 
-            // Real pipeline: the tier feeds DamageCalculator directly via
-            // ResolveAttack, so element matchup and mitigation actually count.
-            ResolveAttack(activeUnit, otherUnit, tier);
+            ResolveAttack(activeUnit, currentAttackTarget, tier);
+            currentAttackTarget = null;
             hasAttackedThisTurn = true;
 
             if (cursor != null)
@@ -502,10 +633,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 cursor.IsLocked = false;
             }
 
-            // Attack always ends the turn (Gladius pattern: move-then-attack,
-            // not attack-then-move). hasAttackedThisTurn guard prevents a
-            // second attack via stale input.
-            EndTurn();
+            EndUnitTurn();
         }
 
         private void BeginMove(List<GridCoord> path, Action onComplete)
@@ -547,11 +675,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void OnPlayerMoveComplete(IReadOnlyList<GridCoord> walkedPath)
         {
             hasMovedThisTurn = true;
-
-            // Persist the walked path as the ghost trail. UpdatePreview will
-            // splice it together with the cursor's current targeting path so
-            // the player can see where they came from at a glance — and a
-            // partial move's out-of-range remainder also stays visible.
             moveTrail.Clear();
             if (walkedPath != null)
             {
@@ -560,17 +683,16 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                     moveTrail.Add(walkedPath[i]);
                 }
             }
-
-            // Don't snap the cursor — leaving it where the player aimed
-            // preserves the planning context (partial-move remainder stays
-            // visible) and the ghost trail handles the "where am I now?"
-            // question on its own.
-
             UpdatePreview();
         }
 
         private void ResolveAttack(CombatUnit attacker, CombatUnit defender, ExecutionResult execution)
         {
+            if (attacker == null || defender == null)
+            {
+                return;
+            }
+
             DamageBreakdown bd = DamageCalculator.ComputeDamage(
                 attacker.Stats, attacker.Element,
                 defender.Stats, defender.Element,
@@ -583,64 +705,62 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (defender.Hp <= 0)
             {
                 events.RaiseUnitDied(defender.Id);
-                isCombatOver = true;
-                events.RaiseCombatEnded(attacker.Faction);
+                CheckWinCondition(attacker.Faction);
             }
         }
 
-        private void EndTurn()
+        private void CheckWinCondition(Faction lastAttackerFaction)
         {
-            // A lethal blow ends the slice — don't hand the turn back (this is
-            // what kept the dead enemy taking its turn and downing the player).
-            if (isCombatOver)
+            bool anyPlayerAlive = false;
+            bool anyEnemyAlive = false;
+            for (int i = 0; i < allUnits.Count; i++)
+            {
+                if (!allUnits[i].IsAlive) continue;
+                if (allUnits[i].Faction == Faction.Player) anyPlayerAlive = true;
+                else anyEnemyAlive = true;
+            }
+
+            if (anyPlayerAlive && anyEnemyAlive)
             {
                 return;
             }
 
-            isPlayerTurn = !isPlayerTurn;
-            SetActiveUnit(isPlayerTurn ? player : enemy, isPlayerTurn ? enemy : player);
+            isCombatOver = true;
+            // Winner = whichever faction still has units. Use the last
+            // attacker as a fallback if both sides simultaneously emptied
+            // (shouldn't happen with current rules but defensive).
+            Faction winner;
+            if (anyPlayerAlive) winner = Faction.Player;
+            else if (anyEnemyAlive) winner = Faction.Enemy;
+            else winner = lastAttackerFaction;
 
-            if (isPlayerTurn)
-            {
-                BeginPlayerTurn();
-                return;
-            }
-
-            StartCoroutine(HandleEnemyTurn());
+            events.RaiseCombatEnded(winner);
         }
 
-        private void BeginPlayerTurn()
-        {
-            hasMovedThisTurn = false;
-            hasAttackedThisTurn = false;
-            moveTrail.Clear();
-
-            if (cursor != null)
-            {
-                cursor.IsLocked = false;
-                cursor.Initialize(activeUnit.Coord);
-            }
-
-            events.RaiseTurnChanged(Faction.Player);
-            UpdatePreview();
-        }
+        // === Enemy AI (per-unit turn) ===
 
         private IEnumerator HandleEnemyTurn()
         {
-            hasMovedThisTurn = false;
-            hasAttackedThisTurn = false;
-            moveTrail.Clear();
-            events.RaiseTurnChanged(Faction.Enemy);
-            yield return new WaitForSeconds(0.1f);
+            // Brief pause so player can read the turn transition.
+            yield return new WaitForSeconds(0.25f);
 
-            // Symmetric rule: enemy gets move + attack same turn. Pathfind
-            // toward the player, walk up to MoveRange tiles toward them (the
-            // original orchestrator only stepped one tile per turn — why
-            // fights felt sluggish in the early playtest), then attack if
-            // adjacent at the end.
-            int initialDistance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
-            if (initialDistance == 1)
+            if (isCombatOver)
             {
+                yield break;
+            }
+
+            // Find nearest living player unit (Manhattan distance).
+            CombatUnit nearestPlayer = FindNearestEnemy(activeUnit);
+            if (nearestPlayer == null)
+            {
+                EndUnitTurn();
+                yield break;
+            }
+
+            int distance = GridMath.ManhattanDistance(activeUnit.Coord, nearestPlayer.Coord);
+            if (distance == 1)
+            {
+                currentAttackTarget = nearestPlayer;
                 ResolveEnemyAttackAndEnd();
                 yield break;
             }
@@ -648,14 +768,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             UpdateOccupancy();
             List<GridCoord> approachPath = GridPathfinderBfs.FindPath(
                 activeUnit.Coord,
-                otherUnit.Coord,
+                nearestPlayer.Coord,
                 occupancy,
                 grid.Bounds);
 
             int reachableSteps = ComputeReachableSteps(approachPath);
             if (reachableSteps <= 0)
             {
-                EndTurn();
+                EndUnitTurn();
                 yield break;
             }
 
@@ -666,28 +786,52 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 moveSegment.Add(approachPath[i]);
             }
 
-            BeginMove(moveSegment, OnEnemyMoveComplete);
+            // Capture the target so OnEnemyMoveComplete knows who to attack
+            // if it's adjacent after the move.
+            CombatUnit intendedTarget = nearestPlayer;
+            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget));
         }
 
-        private void OnEnemyMoveComplete()
+        private CombatUnit FindNearestEnemy(CombatUnit unit)
+        {
+            CombatUnit nearest = null;
+            int nearestDistance = int.MaxValue;
+            for (int i = 0; i < allUnits.Count; i++)
+            {
+                CombatUnit candidate = allUnits[i];
+                if (!candidate.IsAlive) continue;
+                if (candidate.Faction == unit.Faction) continue;
+                int d = GridMath.ManhattanDistance(unit.Coord, candidate.Coord);
+                if (d < nearestDistance)
+                {
+                    nearestDistance = d;
+                    nearest = candidate;
+                }
+            }
+            return nearest;
+        }
+
+        private void OnEnemyMoveComplete(CombatUnit intendedTarget)
         {
             hasMovedThisTurn = true;
 
-            int distance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
-            if (distance == 1)
+            if (intendedTarget != null && intendedTarget.IsAlive
+                && GridMath.ManhattanDistance(activeUnit.Coord, intendedTarget.Coord) == 1)
             {
+                currentAttackTarget = intendedTarget;
                 ResolveEnemyAttackAndEnd();
                 return;
             }
 
-            EndTurn();
+            EndUnitTurn();
         }
 
         private void ResolveEnemyAttackAndEnd()
         {
-            ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
+            ResolveAttack(activeUnit, currentAttackTarget, ExecutionResult.Hit);
+            currentAttackTarget = null;
             hasAttackedThisTurn = true;
-            EndTurn();
+            EndUnitTurn();
         }
     }
 }

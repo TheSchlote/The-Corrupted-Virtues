@@ -16,6 +16,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<UnitDamagedEvent> UnitDamaged;
         public event Action<UnitId> UnitDied;
         public event Action<Faction> TurnChanged;
+        // ActiveUnitChanged fires every time the active unit changes (M2:
+        // multiple units interleave per Speed). Separate from TurnChanged so
+        // per-unit views can light up an "it's your turn" indicator while
+        // faction-level HUD only needs the faction signal.
+        public event Action<UnitId> ActiveUnitChanged;
+        // TurnOrderChanged carries the upcoming queue of unit ids (active
+        // first, then the next units in the current round, then the start of
+        // the next round if there's room). UI uses this to draw the strip.
+        public event Action<IReadOnlyList<UnitId>> TurnOrderChanged;
         public event Action<SelectionChangedEvent> SelectionChanged;
         public event Action<PathPreviewEvent> PathPreviewChanged;
         public event Action<DamageEstimateEvent> DamageEstimateChanged;
@@ -29,6 +38,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseUnitDamaged(UnitDamagedEvent e) => UnitDamaged?.Invoke(e);
         public void RaiseUnitDied(UnitId id) => UnitDied?.Invoke(id);
         public void RaiseTurnChanged(Faction active) => TurnChanged?.Invoke(active);
+        public void RaiseActiveUnitChanged(UnitId id) => ActiveUnitChanged?.Invoke(id);
+        public void RaiseTurnOrderChanged(IReadOnlyList<UnitId> upcoming) => TurnOrderChanged?.Invoke(upcoming);
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(PathPreviewEvent e) => PathPreviewChanged?.Invoke(e);
         public void RaiseDamageEstimateChanged(DamageEstimateEvent e) => DamageEstimateChanged?.Invoke(e);

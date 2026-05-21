@@ -27,6 +27,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         void ClearDamagePreview();
 
+        // "It's this unit's turn" affordance — the view picks how to render
+        // (ring under the unit, glow, arrow, etc). M2 squads need this since
+        // multiple units belong to each side.
+        void SetActiveIndicator(bool active);
+
         void SetVisible(bool visible);
 
         void Despawn();
