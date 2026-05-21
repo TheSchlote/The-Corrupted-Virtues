@@ -114,13 +114,24 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
   - Most "tactics" feedback (squads, abilities, terrain, facing) is **M2-shaped** — no amount of polish on a 1v1 slice gets to fun. Pulled terrain forward; added facing as new backlog.
 - [ ] **Success test:** "this is fun even with cubes." → tag `v0.1.0` _(deferred to post-M1.5 playtest)_
 
-### M1.5 — Feel pass _(additive on top of M1; cheap wins from the playtest)_ ✅ **complete (2026-05-21)**
+### M1.5 — Feel pass _(additive on top of M1; cheap wins from the playtest)_ ✅ **iteration 1 (2026-05-21)** · ✅ **iteration 2 (2026-05-21)**
+**Iteration 1** — first response to the M1 playtest:
 - [x] Orchestrator routes attacks through `DamageCalculator` + `ElementChart` (no more flat-damage bypass)
 - [x] Units carry `CombatStats`, `ElementType`, `AbilitySpec` — Player = **Light**, Enemy = **Dark** (canonical Virtue ↔ Corruption matchup)
 - [x] Gladius-style damage preview: HUD shows `DMG X (Divine Y)` + element matchup label (STRONG / WEAK / Neutral) on attack-valid hover
 - [x] Floating HP bars over units (billboarded; drain right-to-left)
 - [x] Path-preview visibility: brighter yellow line, floats above the ground plane
-- [ ] **Re-playtest** with the above. If fun → tag `v0.1.0`. If not → carry the punch-list into M2 (which everyone agrees is where the missing depth lives).
+
+**Iteration 2** — second-playtest feedback (the 1v1 stayed boring, but specific Gladius affordances surfaced):
+- [x] **Move + attack same turn** (Gladius pattern). Strict order: move (optional) → attack (optional) → end turn. Symmetric — enemy AI uses the same rule (also fixes the original AI bug where the enemy only stepped one tile per turn).
+- [x] **End Turn input** — Tab (kb) / East button B/Circle (gp); persistent corner hint so it's discoverable.
+- [x] **Path beyond range:** cursor stays MoveValid past `MoveRange`; clicking executes a partial move that stops at the reach limit. Path renders as bright yellow in-range + faded grey out-of-range so the truncation point is obvious. `ComputeReachableSteps` also handles "cursor on enemy from far away" — stops one tile short.
+- [x] **HP-bar damage preview** — XCOM-style red overlay on the target's bar showing where HP would land after the forecasted Hit.
+- [x] **Attack name + QTE type** in the top-right damage forecast (e.g. `Radiant Cleave · Swing Meter`).
+- [x] **VICTORY/DEFEAT panel background** so the text reads against the battlefield.
+- [x] **Element-coloured units** — `ElementType` plumbed through `UnitSpawnedEvent` → factory. Player Light = pale gold, Enemy Dark = deep violet. Shape still conveys faction (capsule/cube) for colour-blind readability.
+
+- [ ] **Re-playtest** the second iteration. If fun → tag `v0.1.0`. If not → carry the punch-list into M2 (where squads / abilities / terrain / facing actually live).
 
 ### M2 — Real Combat _(depth, still placeholders)_
 - [ ] Squads (multiple units/side); Speed-based turn order **+ turn-order UI** (so the player can plan around upcoming enemy turns — Gladius pattern)

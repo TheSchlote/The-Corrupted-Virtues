@@ -10,6 +10,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // Edge-triggered: true only on the frame the action is pressed.
         bool ConfirmPressed { get; }
         bool ResetPressed { get; }
+        bool EndTurnPressed { get; }
 
         // Held grid-navigation intent; each axis is -1, 0, or 1.
         Vector2Int MoveAxis { get; }

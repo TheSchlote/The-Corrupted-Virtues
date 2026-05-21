@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -45,6 +46,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private bool isAwaitingSwingStop;
         private bool isCombatOver;
         private bool started;
+
+        // Gladius-style turn structure: each turn the active unit can move
+        // (optional), attack (optional), then ends turn. After moving the
+        // player still controls until they attack or press End Turn.
+        private bool hasMovedThisTurn;
+        private bool hasAttackedThisTurn;
 
         public void Initialize(
             CombatEvents combatEvents,
@@ -153,6 +160,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // End Turn input — player can skip remaining actions (e.g. moved
+            // adjacent but doesn't want to attack yet).
+            if (isPlayerTurn && GameInput.Current.EndTurnPressed)
+            {
+                EndTurn();
+                return;
+            }
+
             if (cursor != null && cursor.TryMoveCursor())
             {
                 UpdatePreview();
@@ -177,8 +192,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             enemy.Hp = enemy.MaxHp;
 
             events.RaiseCombatReset();
-            events.RaiseUnitSpawned(new UnitSpawnedEvent(player.Id, player.Faction, player.Coord, player.Hp, player.MaxHp));
-            events.RaiseUnitSpawned(new UnitSpawnedEvent(enemy.Id, enemy.Faction, enemy.Coord, enemy.Hp, enemy.MaxHp));
+            events.RaiseUnitSpawned(new UnitSpawnedEvent(player.Id, player.Faction, player.Element, player.Coord, player.Hp, player.MaxHp));
+            events.RaiseUnitSpawned(new UnitSpawnedEvent(enemy.Id, enemy.Faction, enemy.Element, enemy.Coord, enemy.Hp, enemy.MaxHp));
 
             isPlayerTurn = true;
             SetActiveUnit(player, enemy);
@@ -189,8 +204,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 cursor.Initialize(activeUnit.Coord);
             }
 
-            events.RaiseTurnChanged(Faction.Player);
-            UpdatePreview();
+            BeginPlayerTurn();
         }
 
         private void SetActiveUnit(CombatUnit active, CombatUnit other)
@@ -215,24 +229,61 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             UpdateOccupancy();
             currentPath.Clear();
-            List<GridCoord> path = GridPathfinderBfs.FindPath(
-                activeUnit.Coord,
-                cursor.CursorCoord,
-                occupancy,
-                grid.Bounds);
-            currentPath.AddRange(path);
 
-            events.RaisePathPreviewChanged(currentPath);
-            RaiseSelection(cursor.CursorCoord);
+            // Once the active unit has moved this turn, hide the path
+            // preview entirely — only attack and End Turn remain, and a
+            // ghost path would just be misleading noise.
+            if (!hasMovedThisTurn)
+            {
+                List<GridCoord> path = GridPathfinderBfs.FindPath(
+                    activeUnit.Coord,
+                    cursor.CursorCoord,
+                    occupancy,
+                    grid.Bounds);
+                currentPath.AddRange(path);
+            }
+
+            int totalSteps = GridMath.StepCount(currentPath);
+            int reachableSteps = ComputeReachableSteps(currentPath);
+
+            events.RaisePathPreviewChanged(new PathPreviewEvent(currentPath, reachableSteps));
+            RaiseSelection(cursor.CursorCoord, totalSteps, reachableSteps);
         }
 
-        private void RaiseSelection(GridCoord cursorCoord)
+        // How many path edges the active unit can actually travel: bounded by
+        // MoveRange and by "don't end on a tile occupied by another unit"
+        // (pathfinder allows the goal to be occupied, but we mustn't step
+        // onto it — e.g. cursor on the enemy from a distance).
+        private int ComputeReachableSteps(IReadOnlyList<GridCoord> path)
+        {
+            if (path == null || path.Count <= 1)
+            {
+                return 0;
+            }
+
+            int totalSteps = GridMath.StepCount(path);
+            int reachable = Mathf.Min(totalSteps, activeUnit.MoveRange);
+
+            GridCoord destination = path[path.Count - 1];
+            if (occupancy.IsOccupied(destination) && destination != activeUnit.Coord)
+            {
+                reachable = Mathf.Min(reachable, totalSteps - 1);
+            }
+
+            return Mathf.Max(0, reachable);
+        }
+
+        private void RaiseSelection(GridCoord cursorCoord, int totalSteps, int reachableSteps)
         {
             UpdateOccupancy();
-            int steps = GridMath.StepCount(currentPath);
             bool occupied = occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
-            bool reachable = steps > 0 && steps <= activeUnit.MoveRange;
-            bool canAttack = cursorCoord == otherUnit.Coord
+            // "MoveValid" now includes targets beyond MoveRange — confirming
+            // executes a partial move that stops at MoveRange (Gladius/XCOM
+            // pattern). The path preview's faded out-of-range segment makes
+            // the truncation point unmistakable.
+            bool reachable = reachableSteps > 0 && !hasMovedThisTurn;
+            bool canAttack = !hasAttackedThisTurn
+                && cursorCoord == otherUnit.Coord
                 && GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord) == 1;
 
             SelectionState state;
@@ -245,7 +296,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             else if (reachable && !occupied)
             {
                 state = SelectionState.MoveValid;
-                hint = "Confirm: Move";
+                hint = totalSteps > reachableSteps
+                    ? $"Confirm: Move ({reachableSteps}/{totalSteps} tiles)"
+                    : "Confirm: Move";
             }
             else if (cursorCoord == activeUnit.Coord)
             {
@@ -284,12 +337,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 otherUnit.Stats, otherUnit.Element,
                 activeUnit.BasicAttack, ExecutionResult.Divine);
 
+            string qteName = swingMeter != null ? swingMeter.DisplayName : string.Empty;
+
             events.RaiseDamageEstimateChanged(new DamageEstimateEvent(
+                otherUnit.Id,
                 hit.FinalDamage,
                 divine.FinalDamage,
                 activeUnit.BasicAttack.Element,
                 otherUnit.Element,
-                hit.ElementMultiplier));
+                hit.ElementMultiplier,
+                activeUnit.BasicAttack.Name,
+                qteName));
         }
 
         private void HandleConfirm()
@@ -302,7 +360,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             GridCoord target = cursor.CursorCoord;
             int distance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
 
-            if (target == otherUnit.Coord && distance == 1)
+            if (target == otherUnit.Coord && distance == 1 && !hasAttackedThisTurn)
             {
                 if (isPlayerTurn)
                 {
@@ -310,7 +368,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 }
                 else
                 {
-                    // Enemy doesn't QTE — treat as a baseline Hit.
+                    // Enemy doesn't QTE — treat as a baseline Hit. Enemy AI
+                    // uses ResolveEnemyAction, not this branch, so this is
+                    // defensive only.
                     ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
                     EndTurn();
                 }
@@ -318,19 +378,35 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            if (hasMovedThisTurn)
+            {
+                return;
+            }
+
             UpdateOccupancy();
-            if (occupancy.IsOccupied(target) && target != activeUnit.Coord)
+            if (currentPath.Count <= 1)
             {
                 return;
             }
 
-            int steps = GridMath.StepCount(currentPath);
-            if (steps == 0 || steps > activeUnit.MoveRange)
+            // Truncate path at MoveRange so the player can target far and
+            // see the move stop at the reach limit. ComputeReachableSteps also
+            // handles "cursor is on the enemy from far away" — stops one short
+            // of the occupied destination.
+            int reachableSteps = ComputeReachableSteps(currentPath);
+            if (reachableSteps <= 0)
             {
                 return;
             }
 
-            BeginMove(currentPath);
+            int reachablePoints = reachableSteps + 1;
+            List<GridCoord> truncated = new List<GridCoord>(reachablePoints);
+            for (int i = 0; i < reachablePoints; i++)
+            {
+                truncated.Add(currentPath[i]);
+            }
+
+            BeginMove(truncated, OnPlayerMoveComplete);
         }
 
         private void BeginPlayerAttack()
@@ -354,7 +430,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 cursor.IsLocked = true;
             }
 
-            events.RaisePathPreviewChanged(System.Array.Empty<GridCoord>());
+            events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
             swingMeter.Begin();
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, "Confirm: Stop Swing"));
@@ -384,26 +460,31 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             // Real pipeline: the tier feeds DamageCalculator directly via
             // ResolveAttack, so element matchup and mitigation actually count.
             ResolveAttack(activeUnit, otherUnit, tier);
+            hasAttackedThisTurn = true;
 
             if (cursor != null)
             {
                 cursor.IsLocked = false;
             }
 
+            // Attack always ends the turn (Gladius pattern: move-then-attack,
+            // not attack-then-move). hasAttackedThisTurn guard prevents a
+            // second attack via stale input.
             EndTurn();
         }
 
-        private void BeginMove(List<GridCoord> path)
+        private void BeginMove(List<GridCoord> path, Action onComplete)
         {
-            if (path.Count == 0)
+            if (path.Count <= 1)
             {
+                onComplete?.Invoke();
                 return;
             }
 
-            StartCoroutine(MoveAlongPath(new List<GridCoord>(path)));
+            StartCoroutine(MoveAlongPath(new List<GridCoord>(path), onComplete));
         }
 
-        private IEnumerator MoveAlongPath(List<GridCoord> path)
+        private IEnumerator MoveAlongPath(List<GridCoord> path, Action onComplete)
         {
             isMoving = true;
             if (cursor != null)
@@ -425,7 +506,21 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 cursor.IsLocked = false;
             }
 
-            EndTurn();
+            onComplete?.Invoke();
+        }
+
+        private void OnPlayerMoveComplete()
+        {
+            hasMovedThisTurn = true;
+
+            // Snap the cursor to the unit's new position so the player has a
+            // natural starting point for deciding whether to attack or end.
+            if (cursor != null)
+            {
+                cursor.Initialize(activeUnit.Coord);
+            }
+
+            UpdatePreview();
         }
 
         private void ResolveAttack(CombatUnit attacker, CombatUnit defender, ExecutionResult execution)
@@ -458,69 +553,93 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             isPlayerTurn = !isPlayerTurn;
             SetActiveUnit(isPlayerTurn ? player : enemy, isPlayerTurn ? enemy : player);
-            events.RaiseTurnChanged(isPlayerTurn ? Faction.Player : Faction.Enemy);
 
             if (isPlayerTurn)
             {
-                if (cursor != null)
-                {
-                    cursor.IsLocked = false;
-                    cursor.Initialize(activeUnit.Coord);
-                }
-
-                UpdatePreview();
+                BeginPlayerTurn();
                 return;
             }
 
             StartCoroutine(HandleEnemyTurn());
         }
 
+        private void BeginPlayerTurn()
+        {
+            hasMovedThisTurn = false;
+            hasAttackedThisTurn = false;
+
+            if (cursor != null)
+            {
+                cursor.IsLocked = false;
+                cursor.Initialize(activeUnit.Coord);
+            }
+
+            events.RaiseTurnChanged(Faction.Player);
+            UpdatePreview();
+        }
+
         private IEnumerator HandleEnemyTurn()
         {
+            hasMovedThisTurn = false;
+            hasAttackedThisTurn = false;
+            events.RaiseTurnChanged(Faction.Enemy);
             yield return new WaitForSeconds(0.1f);
+
+            // Symmetric rule: enemy gets move + attack same turn. Pathfind
+            // toward the player, walk up to MoveRange tiles toward them (the
+            // original orchestrator only stepped one tile per turn — why
+            // fights felt sluggish in the early playtest), then attack if
+            // adjacent at the end.
+            int initialDistance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
+            if (initialDistance == 1)
+            {
+                ResolveEnemyAttackAndEnd();
+                yield break;
+            }
+
+            UpdateOccupancy();
+            List<GridCoord> approachPath = GridPathfinderBfs.FindPath(
+                activeUnit.Coord,
+                otherUnit.Coord,
+                occupancy,
+                grid.Bounds);
+
+            int reachableSteps = ComputeReachableSteps(approachPath);
+            if (reachableSteps <= 0)
+            {
+                EndTurn();
+                yield break;
+            }
+
+            int points = reachableSteps + 1;
+            List<GridCoord> moveSegment = new List<GridCoord>(points);
+            for (int i = 0; i < points; i++)
+            {
+                moveSegment.Add(approachPath[i]);
+            }
+
+            BeginMove(moveSegment, OnEnemyMoveComplete);
+        }
+
+        private void OnEnemyMoveComplete()
+        {
+            hasMovedThisTurn = true;
 
             int distance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
             if (distance == 1)
             {
-                ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
-                EndTurn();
-                yield break;
+                ResolveEnemyAttackAndEnd();
+                return;
             }
 
-            GridCoord step = GetStepToward(activeUnit.Coord, otherUnit.Coord);
-            UpdateOccupancy();
-            if (occupancy.IsOccupied(step) && step != activeUnit.Coord)
-            {
-                EndTurn();
-                yield break;
-            }
-
-            List<GridCoord> path = GridPathfinderBfs.FindPath(
-                activeUnit.Coord,
-                step,
-                occupancy,
-                grid.Bounds);
-
-            if (path.Count == 0 || GridMath.StepCount(path) > activeUnit.MoveRange)
-            {
-                EndTurn();
-                yield break;
-            }
-
-            BeginMove(path);
+            EndTurn();
         }
 
-        private static GridCoord GetStepToward(GridCoord from, GridCoord to)
+        private void ResolveEnemyAttackAndEnd()
         {
-            int dx = to.X - from.X;
-            int dy = to.Y - from.Y;
-
-            if (Mathf.Abs(dx) >= Mathf.Abs(dy))
-            {
-                return new GridCoord(from.X + (dx == 0 ? 0 : (dx > 0 ? 1 : -1)), from.Y);
-            }
-
-            return new GridCoord(from.X, from.Y + (dy == 0 ? 0 : (dy > 0 ? 1 : -1)));
+            ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
+            hasAttackedThisTurn = true;
+            EndTurn();
         }
     }
 }

@@ -19,7 +19,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private TMP_Text enemyHpText;
         private TMP_Text hintText;
         private TMP_Text outcomeText;
+        private Image outcomePanel;
         private TMP_Text damageInfoText;
+        private TMP_Text endTurnHintText;
 
         public void Initialize(CombatEvents combatEvents)
         {
@@ -117,7 +119,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             string hex = ColorUtility.ToHtmlStringRGB(matchupColor);
+
+            // Three-line readout: which attack, which QTE type, then the
+            // damage + element matchup. The attack/QTE line was the M1.5
+            // playtest gap — players couldn't tell what they were committing to.
+            string attackLine = string.IsNullOrEmpty(e.AttackName) ? string.Empty : e.AttackName;
+            string qteLine = string.IsNullOrEmpty(e.QteName) ? string.Empty : e.QteName;
+            string header = !string.IsNullOrEmpty(attackLine) && !string.IsNullOrEmpty(qteLine)
+                ? $"<size=85%>{attackLine}  ·  {qteLine}</size>\n"
+                : (string.IsNullOrEmpty(attackLine) ? string.Empty : $"<size=85%>{attackLine}</size>\n");
+
             damageInfoText.text =
+                header +
                 $"DMG {e.HitDamage}  <size=80%>(Divine {e.DivineDamage})</size>\n" +
                 $"<size=80%>{e.AttackerElement} → {e.DefenderElement}</size>  <color=#{hex}>{matchupLabel}</color>";
         }
@@ -131,9 +144,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                     : "DEFEAT\n<size=60%>Press R to try again</size>";
             }
 
+            if (outcomePanel != null)
+            {
+                outcomePanel.gameObject.SetActive(true);
+            }
+
             // No more selection or estimate events fire once combat is over,
             // so the last action hint ("Confirm: Stop Swing") and the last
-            // damage forecast would linger otherwise.
+            // damage forecast would linger otherwise. Same for the persistent
+            // End Turn hint — Tab is meaningless once combat is over.
             if (hintText != null)
             {
                 hintText.text = string.Empty;
@@ -142,6 +161,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (damageInfoText != null)
             {
                 damageInfoText.text = string.Empty;
+            }
+
+            if (endTurnHintText != null)
+            {
+                endTurnHintText.text = string.Empty;
             }
         }
 
@@ -161,9 +185,19 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 outcomeText.text = string.Empty;
             }
 
+            if (outcomePanel != null)
+            {
+                outcomePanel.gameObject.SetActive(false);
+            }
+
             if (damageInfoText != null)
             {
                 damageInfoText.text = string.Empty;
+            }
+
+            if (endTurnHintText != null)
+            {
+                endTurnHintText.text = "Tab: End Turn";
             }
         }
 
@@ -193,18 +227,45 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             hintText = CreateText(canvas.transform, "HintText", new Vector2(0.3f, 0.02f), new Vector2(0.7f, 0.1f), string.Empty);
             hintText.alignment = TextAlignmentOptions.Center;
 
+            // Persistent corner hint so End Turn is discoverable without
+            // hunting through a menu. Muted; not meant to grab focus.
+            endTurnHintText = CreateText(canvas.transform, "EndTurnHintText", new Vector2(0.75f, 0.02f), new Vector2(0.98f, 0.07f), "Tab: End Turn");
+            endTurnHintText.alignment = TextAlignmentOptions.BottomRight;
+            endTurnHintText.fontSize = 18;
+            endTurnHintText.color = new Color(0.85f, 0.85f, 0.85f, 0.85f);
+
             // Damage forecast lives in the top-right — the Gladius-style
             // "1.0x estimate + critical upside" readout fires only when the
-            // cursor is over a valid attack target.
-            damageInfoText = CreateText(canvas.transform, "DamageInfoText", new Vector2(0.55f, 0.85f), new Vector2(0.98f, 0.99f), string.Empty);
+            // cursor is over a valid attack target. Taller now to fit the
+            // attack name + QTE-type line above the damage.
+            damageInfoText = CreateText(canvas.transform, "DamageInfoText", new Vector2(0.55f, 0.79f), new Vector2(0.98f, 0.99f), string.Empty);
             damageInfoText.alignment = TextAlignmentOptions.TopRight;
 
-            // Mid-screen, clear of the VFX callout (y 0.70-0.82) and the
-            // swing meter (y 0.15-0.235) so end-of-combat reads cleanly.
+            // VICTORY/DEFEAT outcome — panel + text together, panel created
+            // first so it draws behind the text. Hidden until CombatEnded.
+            outcomePanel = CreatePanel(canvas.transform, "OutcomePanel", new Vector2(0.2f, 0.38f), new Vector2(0.8f, 0.62f), new Color(0f, 0f, 0f, 0.7f));
+            outcomePanel.gameObject.SetActive(false);
+
             outcomeText = CreateText(canvas.transform, "OutcomeText", new Vector2(0.25f, 0.42f), new Vector2(0.75f, 0.60f), string.Empty);
             outcomeText.alignment = TextAlignmentOptions.Center;
             outcomeText.fontSize = 52;
             outcomeText.fontStyle = FontStyles.Bold;
+        }
+
+        private static Image CreatePanel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Color color)
+        {
+            GameObject panelObject = new GameObject(name);
+            panelObject.transform.SetParent(parent, false);
+            RectTransform rect = panelObject.AddComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image image = panelObject.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
         }
 
         private static TMP_Text CreateText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, string content)

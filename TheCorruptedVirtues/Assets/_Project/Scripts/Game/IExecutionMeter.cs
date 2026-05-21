@@ -17,6 +17,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // True between Begin() and StopAndEvaluate()/Cancel().
         bool IsRunning { get; }
 
+        // Player-facing label for the QTE variant (e.g. "Swing Meter",
+        // "Button Mash"). Surfaced in the HUD so the player knows what kind of
+        // timing check they're about to do — direct M1 playtest ask.
+        string DisplayName { get; }
+
         // Start the challenge: show it and begin the timed input.
         void Begin();
 

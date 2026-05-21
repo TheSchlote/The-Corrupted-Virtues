@@ -35,6 +35,20 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        public bool EndTurnPressed
+        {
+            get
+            {
+                Keyboard kb = Keyboard.current;
+                Gamepad gp = Gamepad.current;
+                bool keyboard = kb != null && kb.tabKey.wasPressedThisFrame;
+                // East button = B (Xbox) / Circle (PlayStation) — the genre
+                // "cancel/back" position. Free here and reads as "skip my turn."
+                bool gamepad = gp != null && gp.buttonEast.wasPressedThisFrame;
+                return keyboard || gamepad;
+            }
+        }
+
         public Vector2Int MoveAxis
         {
             get

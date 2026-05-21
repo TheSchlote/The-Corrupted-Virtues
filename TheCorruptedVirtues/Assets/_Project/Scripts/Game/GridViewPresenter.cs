@@ -78,11 +78,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ViewMaterials.SetColor(cursorRenderer, ColorFor(e.State));
         }
 
-        private void OnPathPreviewChanged(IReadOnlyList<GridCoord> path)
+        private void OnPathPreviewChanged(PathPreviewEvent e)
         {
             if (pathPreview != null)
             {
-                pathPreview.RenderPath(path);
+                pathPreview.RenderPath(e.Path, e.ReachableSteps);
             }
         }
 

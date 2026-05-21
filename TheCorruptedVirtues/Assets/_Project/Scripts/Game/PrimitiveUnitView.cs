@@ -20,7 +20,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private Transform hpBarRoot;
         private Transform hpBarFill;
+        private Transform hpBarPreview;
         private Camera billboardCamera;
+
+        private int cachedCurrentHp;
+        private int cachedMaxHp;
 
         public void Configure(Renderer renderer, Color color)
         {
@@ -60,23 +64,44 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         public void UpdateHp(int current, int max)
         {
+            cachedCurrentHp = current;
+            cachedMaxHp = max;
+
             if (hpBarFill == null)
             {
                 return;
             }
 
-            float ratio = max > 0 ? Mathf.Clamp01((float)current / max) : 0f;
+            SetBarSegment(hpBarFill, 0f, Ratio(current, max));
+        }
 
-            // Quads pivot at center, so scaling shrinks both ends. Offset the
-            // fill leftward by the missing half-width so it drains right-to-left
-            // like every HP bar in the genre.
-            Vector3 scale = hpBarFill.localScale;
-            scale.x = HpBarWidth * ratio;
-            hpBarFill.localScale = scale;
+        public void ShowDamagePreview(int previewDamage)
+        {
+            if (hpBarPreview == null || cachedMaxHp <= 0)
+            {
+                return;
+            }
 
-            Vector3 pos = hpBarFill.localPosition;
-            pos.x = -0.5f * HpBarWidth * (1f - ratio);
-            hpBarFill.localPosition = pos;
+            int afterHp = Mathf.Max(0, cachedCurrentHp - previewDamage);
+            float currentRatio = Ratio(cachedCurrentHp, cachedMaxHp);
+            float afterRatio = Ratio(afterHp, cachedMaxHp);
+
+            if (afterRatio >= currentRatio - 1e-4f)
+            {
+                hpBarPreview.gameObject.SetActive(false);
+                return;
+            }
+
+            hpBarPreview.gameObject.SetActive(true);
+            SetBarSegment(hpBarPreview, afterRatio, currentRatio);
+        }
+
+        public void ClearDamagePreview()
+        {
+            if (hpBarPreview != null)
+            {
+                hpBarPreview.gameObject.SetActive(false);
+            }
         }
 
         public void SetVisible(bool visible)
@@ -145,6 +170,49 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 width: HpBarWidth,
                 color: new Color(0.45f, 0.9f, 0.45f, 1f),
                 localOffsetZ: -0.005f);
+
+            // Damage preview — muted red, sits in front of the fill. Hidden by
+            // default; ShowDamagePreview positions/scales it to span the
+            // would-be-lost portion of the bar.
+            hpBarPreview = CreateBarQuad(
+                "HpBarPreview",
+                hpBarRoot,
+                width: HpBarWidth,
+                color: new Color(0.95f, 0.35f, 0.3f, 1f),
+                localOffsetZ: -0.01f);
+            hpBarPreview.gameObject.SetActive(false);
+        }
+
+        // Helper: place a bar segment between two normalised positions in
+        // [0,1] along the bar (0 = left edge, 1 = right edge).
+        private static void SetBarSegment(Transform segment, float fromNormalized, float toNormalized)
+        {
+            float from = Mathf.Clamp01(fromNormalized);
+            float to = Mathf.Clamp01(toNormalized);
+            if (to < from)
+            {
+                float swap = from;
+                from = to;
+                to = swap;
+            }
+
+            float width = to - from;
+            // Quads pivot at center: scaling shrinks both ends, so we have to
+            // recentre by the segment midpoint expressed in bar-local space.
+            // Bar local-x ranges from -HpBarWidth/2 to +HpBarWidth/2.
+            float center = (from + to) * 0.5f;
+            Vector3 scale = segment.localScale;
+            scale.x = HpBarWidth * width;
+            segment.localScale = scale;
+
+            Vector3 pos = segment.localPosition;
+            pos.x = HpBarWidth * (center - 0.5f);
+            segment.localPosition = pos;
+        }
+
+        private static float Ratio(int current, int max)
+        {
+            return max > 0 ? Mathf.Clamp01((float)current / max) : 0f;
         }
 
         private Transform CreateBarQuad(string objectName, Transform parent, float width, Color color, float localOffsetZ)

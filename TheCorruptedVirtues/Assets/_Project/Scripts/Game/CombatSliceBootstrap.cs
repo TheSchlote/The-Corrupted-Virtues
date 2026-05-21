@@ -88,21 +88,42 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private PathPreviewRenderer CreatePathPreview(GridPresenter grid)
         {
             GameObject pathObject = CreateChild("PathPreview");
-            LineRenderer line = pathObject.AddComponent<LineRenderer>();
-            // Thicker + brighter than the original cyan-on-grey, which was
-            // nearly invisible in the M1 playtest screenshot.
-            line.widthMultiplier = 0.14f;
+
+            // Two lines: bright yellow within MoveRange, faded grey for the
+            // out-of-range continuation so the truncation point reads at a
+            // glance. Both have to be separate components because LineRenderer
+            // is one-per-GameObject; we parent each under a holder.
+            LineRenderer reachable = CreateLine(
+                pathObject.transform,
+                name: "ReachableLine",
+                color: new Color(1f, 0.92f, 0.35f),
+                width: 0.14f);
+
+            LineRenderer outOfRange = CreateLine(
+                pathObject.transform,
+                name: "OutOfRangeLine",
+                color: new Color(0.55f, 0.55f, 0.55f),
+                width: 0.10f);
+
+            PathPreviewRenderer preview = pathObject.AddComponent<PathPreviewRenderer>();
+            preview.Configure(grid, reachable, outOfRange);
+            return preview;
+        }
+
+        private static LineRenderer CreateLine(Transform parent, string name, Color color, float width)
+        {
+            GameObject host = new GameObject(name);
+            host.transform.SetParent(parent, false);
+
+            LineRenderer line = host.AddComponent<LineRenderer>();
+            line.widthMultiplier = width;
             line.material = new Material(Shader.Find("Sprites/Default"));
-            Color pathColor = new Color(1f, 0.92f, 0.35f);
-            line.startColor = pathColor;
-            line.endColor = pathColor;
+            line.startColor = color;
+            line.endColor = color;
             line.numCornerVertices = 4;
             line.numCapVertices = 4;
             line.positionCount = 0;
-
-            PathPreviewRenderer preview = pathObject.AddComponent<PathPreviewRenderer>();
-            preview.Configure(grid, line);
-            return preview;
+            return line;
         }
 
         private IExecutionMeter CreateSwingMeter()

@@ -20,6 +20,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // still owns the canonical HP — this is purely presentation.
         void UpdateHp(int current, int max);
 
+        // XCOM-style preview: show how much of this unit's HP would be lost
+        // by an incoming hit (typically the 1.0x "Hit" tier). Cleared when the
+        // attack hover ends. View decides how to render it.
+        void ShowDamagePreview(int previewDamage);
+
+        void ClearDamagePreview();
+
         void SetVisible(bool visible);
 
         void Despawn();

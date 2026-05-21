@@ -34,6 +34,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         public bool IsAvailable => enabled;
 
+        public string DisplayName => "Swing Meter";
+
         private void Awake()
         {
             TryInitialize();
