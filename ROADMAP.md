@@ -112,7 +112,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - **First playtest (2026-05-20):** wiring works, but the slice can't answer "is it fun?" — 1v1 / one ability / flat plane stripped out the depth needed to evaluate. Two findings:
   - The orchestrator was **bypassing the pure-C# combat math** (`DamageCalculator` / `ElementChart` / `ExecutionCalculator` existed but were never called). Re-routing through them unlocked elements + damage breakdown + damage preview in one change — see M1.5.
   - Most "tactics" feedback (squads, abilities, terrain, facing) is **M2-shaped** — no amount of polish on a 1v1 slice gets to fun. Pulled terrain forward; added facing as new backlog.
-- [ ] **Success test:** "this is fun even with cubes." → tag `v0.1.0` _(deferred to post-M1.5 playtest)_
+- [x] **Success test:** "this is fun even with cubes." — signed off 2026-05-21 after M1.5 iteration 2. → ready to tag `v0.1.0`.
 
 ### M1.5 — Feel pass _(additive on top of M1; cheap wins from the playtest)_ ✅ **iteration 1 (2026-05-21)** · ✅ **iteration 2 (2026-05-21)**
 **Iteration 1** — first response to the M1 playtest:
@@ -131,7 +131,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] **VICTORY/DEFEAT panel background** so the text reads against the battlefield.
 - [x] **Element-coloured units** — `ElementType` plumbed through `UnitSpawnedEvent` → factory. Player Light = pale gold, Enemy Dark = deep violet. Shape still conveys faction (capsule/cube) for colour-blind readability.
 
-- [ ] **Re-playtest** the second iteration. If fun → tag `v0.1.0`. If not → carry the punch-list into M2 (where squads / abilities / terrain / facing actually live).
+- [x] **Re-playtest** the second iteration — signed off 2026-05-21. Remaining wants (unit animations, formalized UI system) deferred to M3+ because both are asset-coupled and wait for the art decision.
 
 ### M2 — Real Combat _(depth, still placeholders)_
 - [ ] Squads (multiple units/side); Speed-based turn order **+ turn-order UI** (so the player can plan around upcoming enemy turns — Gladius pattern)
@@ -154,6 +154,8 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
       recruitment. Explicitly deferred — design the data seams, build the UI later.
       _(Gladius-style move/equipment loadouts live here — direct M1 playtest ask.)_
 - [ ] Audio + game juice; real art over placeholders (the art decision happens here)
+- [ ] **Unit animations** (idle / walk / hit / attack / death). Deferred from M1.5 by design — animations are inherently asset-coupled, so they wait for the art decision rather than getting built against primitives and thrown away.
+- [ ] **Formalized UI system** (consistent panels, layout grammar, visual hierarchy). The M1.5 HUD has elements scattered in screen corners because each was added in isolation; a real UI framework should match the eventual visual style, so it waits with the art decision.
 - [ ] Menus, settings, build pipeline, release polish
 
 ## 6. Functionality Backlog _(unscheduled — reorder/triage freely)_
