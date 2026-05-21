@@ -19,6 +19,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private TMP_Text enemyHpText;
         private TMP_Text hintText;
         private TMP_Text outcomeText;
+        private TMP_Text damageInfoText;
 
         public void Initialize(CombatEvents combatEvents)
         {
@@ -29,6 +30,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitSpawned += OnUnitSpawned;
             events.UnitDamaged += OnUnitDamaged;
             events.SelectionChanged += OnSelectionChanged;
+            events.DamageEstimateChanged += OnDamageEstimateChanged;
             events.CombatEnded += OnCombatEnded;
             events.CombatReset += OnCombatReset;
         }
@@ -44,6 +46,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitSpawned -= OnUnitSpawned;
             events.UnitDamaged -= OnUnitDamaged;
             events.SelectionChanged -= OnSelectionChanged;
+            events.DamageEstimateChanged -= OnDamageEstimateChanged;
             events.CombatEnded -= OnCombatEnded;
             events.CombatReset -= OnCombatReset;
         }
@@ -82,6 +85,43 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        private void OnDamageEstimateChanged(DamageEstimateEvent e)
+        {
+            if (damageInfoText == null)
+            {
+                return;
+            }
+
+            if (!e.HasEstimate)
+            {
+                damageInfoText.text = string.Empty;
+                return;
+            }
+
+            string matchupLabel;
+            Color matchupColor;
+            if (e.ElementMultiplier > 1.01f)
+            {
+                matchupLabel = "STRONG";
+                matchupColor = new Color(0.5f, 0.95f, 0.5f);
+            }
+            else if (e.ElementMultiplier < 0.99f)
+            {
+                matchupLabel = "WEAK";
+                matchupColor = new Color(0.95f, 0.55f, 0.5f);
+            }
+            else
+            {
+                matchupLabel = "Neutral";
+                matchupColor = new Color(0.85f, 0.85f, 0.85f);
+            }
+
+            string hex = ColorUtility.ToHtmlStringRGB(matchupColor);
+            damageInfoText.text =
+                $"DMG {e.HitDamage}  <size=80%>(Divine {e.DivineDamage})</size>\n" +
+                $"<size=80%>{e.AttackerElement} → {e.DefenderElement}</size>  <color=#{hex}>{matchupLabel}</color>";
+        }
+
         private void OnCombatEnded(Faction winner)
         {
             if (outcomeText != null)
@@ -91,11 +131,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                     : "DEFEAT\n<size=60%>Press R to try again</size>";
             }
 
-            // No more selection events fire once combat is over, so the last
-            // action hint ("Confirm: Stop Swing") would linger otherwise.
+            // No more selection or estimate events fire once combat is over,
+            // so the last action hint ("Confirm: Stop Swing") and the last
+            // damage forecast would linger otherwise.
             if (hintText != null)
             {
                 hintText.text = string.Empty;
+            }
+
+            if (damageInfoText != null)
+            {
+                damageInfoText.text = string.Empty;
             }
         }
 
@@ -113,6 +159,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (outcomeText != null)
             {
                 outcomeText.text = string.Empty;
+            }
+
+            if (damageInfoText != null)
+            {
+                damageInfoText.text = string.Empty;
             }
         }
 
@@ -141,6 +192,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             enemyHpText = CreateText(canvas.transform, "EnemyHpText", new Vector2(0.02f, 0.78f), new Vector2(0.4f, 0.85f), "Enemy HP: -");
             hintText = CreateText(canvas.transform, "HintText", new Vector2(0.3f, 0.02f), new Vector2(0.7f, 0.1f), string.Empty);
             hintText.alignment = TextAlignmentOptions.Center;
+
+            // Damage forecast lives in the top-right — the Gladius-style
+            // "1.0x estimate + critical upside" readout fires only when the
+            // cursor is over a valid attack target.
+            damageInfoText = CreateText(canvas.transform, "DamageInfoText", new Vector2(0.55f, 0.85f), new Vector2(0.98f, 0.99f), string.Empty);
+            damageInfoText.alignment = TextAlignmentOptions.TopRight;
 
             // Mid-screen, clear of the VFX callout (y 0.70-0.82) and the
             // swing meter (y 0.15-0.235) so end-of-combat reads cleanly.

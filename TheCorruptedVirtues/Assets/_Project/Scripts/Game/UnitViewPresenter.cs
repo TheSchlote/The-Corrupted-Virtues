@@ -46,11 +46,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 existing.SetVisible(true);
                 existing.Warp(grid.GridToWorld(e.Coord, grid.UnitY));
+                existing.UpdateHp(e.Hp, e.MaxHp);
                 return;
             }
 
             IUnitView view = factory.CreateUnit(e.Faction);
             view.Warp(grid.GridToWorld(e.Coord, grid.UnitY));
+            view.UpdateHp(e.Hp, e.MaxHp);
             views[e.Id] = view;
         }
 
@@ -66,6 +68,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             if (views.TryGetValue(e.Id, out IUnitView view))
             {
+                view.UpdateHp(e.Hp, e.MaxHp);
                 view.PlayHitFlash();
             }
         }

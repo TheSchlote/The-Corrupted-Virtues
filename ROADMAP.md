@@ -4,7 +4,7 @@
 > yours to redirect as the game evolves. Claude reads this for design/scope intent.
 > World & story live in [docs/LORE.md](docs/LORE.md) and [docs/STORY.md](docs/STORY.md).
 >
-> _Last reviewed: 2026-05-18_
+> _Last reviewed: 2026-05-21_
 
 ---
 
@@ -105,19 +105,33 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] Input abstraction: keyboard/mouse **and** gamepad from day one _(PR #4)_
 - [x] **QTE abstraction** (interface) with the existing **swing meter as the first concrete type** _(PR #3)_
 - [x] **Grid core supports multi-tile occupancy** (design for N×N; M1 spawns only 1×1) _(PR #2)_
-- [ ] Loop: select unit → move → attack → QTE → deterministic damage → end turn → repeat
-- [ ] 1 player unit vs 1 enemy, one action/turn, placeholder primitives
-- [ ] Minimal HUD (turn owner, selection, HP) built in code
-- [ ] **Success test:** "this is fun even with cubes." → tag `v0.1.0`
+- [x] Loop: select unit → move → attack → QTE → deterministic damage → end turn → repeat
+- [x] 1 player unit vs 1 enemy, one action/turn, placeholder primitives
+- [x] Minimal HUD (turn owner, selection, HP) built in code
+- [x] Win/loss terminal state (VICTORY/DEFEAT banner) _(originally scoped to M2; landed in M1)_
+- **First playtest (2026-05-20):** wiring works, but the slice can't answer "is it fun?" — 1v1 / one ability / flat plane stripped out the depth needed to evaluate. Two findings:
+  - The orchestrator was **bypassing the pure-C# combat math** (`DamageCalculator` / `ElementChart` / `ExecutionCalculator` existed but were never called). Re-routing through them unlocked elements + damage breakdown + damage preview in one change — see M1.5.
+  - Most "tactics" feedback (squads, abilities, terrain, facing) is **M2-shaped** — no amount of polish on a 1v1 slice gets to fun. Pulled terrain forward; added facing as new backlog.
+- [ ] **Success test:** "this is fun even with cubes." → tag `v0.1.0` _(deferred to post-M1.5 playtest)_
+
+### M1.5 — Feel pass _(additive on top of M1; cheap wins from the playtest)_ ✅ **complete (2026-05-21)**
+- [x] Orchestrator routes attacks through `DamageCalculator` + `ElementChart` (no more flat-damage bypass)
+- [x] Units carry `CombatStats`, `ElementType`, `AbilitySpec` — Player = **Light**, Enemy = **Dark** (canonical Virtue ↔ Corruption matchup)
+- [x] Gladius-style damage preview: HUD shows `DMG X (Divine Y)` + element matchup label (STRONG / WEAK / Neutral) on attack-valid hover
+- [x] Floating HP bars over units (billboarded; drain right-to-left)
+- [x] Path-preview visibility: brighter yellow line, floats above the ground plane
+- [ ] **Re-playtest** with the above. If fun → tag `v0.1.0`. If not → carry the punch-list into M2 (which everyone agrees is where the missing depth lives).
 
 ### M2 — Real Combat _(depth, still placeholders)_
-- [ ] Squads (multiple units/side); Speed-based turn order
-- [ ] Abilities + MP cost; physical/special/support kinds
-- [ ] Win / loss / battle-end flow; basic enemy AI
+- [ ] Squads (multiple units/side); Speed-based turn order **+ turn-order UI** (so the player can plan around upcoming enemy turns — Gladius pattern)
+- [ ] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE)
+- [ ] **Pulled forward from M3:** grid elevation/terrain (high ground bonus). Identified in the M1 playtest as a fun-prerequisite — needed in M2 so positioning becomes a real choice.
+- [ ] **Facing / flanking:** unit facing + back/side attack modifiers; facing arrow indicator. (New from M1 playtest — direct Gladius ask.)
+- [ ] Win / loss / battle-end flow; basic enemy AI _(terminal state landed in M1; AI + multi-unit flow remains)_
 - [ ] **Great Beast boss:** a 2×2 unit + **Corruption gauge** (purify-not-kill win condition)
 - [ ] Additional QTE types (button mash / timed press / matching)
 - [ ] Decompose god-controller → TurnSystem / AttackSystem / Hud (driven by need)
-- [ ] Digimon-Survive stat-semantics pass; element interactions surfaced in UI
+- [ ] Digimon-Survive stat-semantics pass _(element matchup UI shipped in M1.5)_
 - [ ] → tag `v0.2.0`
 
 ### M3+ — Campaign _(after the loop is provably fun)_
@@ -125,9 +139,9 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
       Great Beast boss; purify → restore → next. Repeat ×7, then Paradeisos finale.
 - [ ] Save / load; between-region progression
 - [ ] Region restoration on purification (visual/state change of the region)
-- [ ] Grid elevation/terrain (needed for Great Beast pathing variety)
 - [ ] **RPG customization layer (later):** items, equipment, skills, party building &
       recruitment. Explicitly deferred — design the data seams, build the UI later.
+      _(Gladius-style move/equipment loadouts live here — direct M1 playtest ask.)_
 - [ ] Audio + game juice; real art over placeholders (the art decision happens here)
 - [ ] Menus, settings, build pipeline, release polish
 

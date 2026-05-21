@@ -18,8 +18,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             public GridCoord Coord;
             public GridCoord SpawnCoord;
             public int Hp;
-            public int MaxHp;
+            public CombatStats Stats;
+            public ElementType Element;
+            public AbilitySpec BasicAttack;
             public int MoveRange;
+
+            public int MaxHp => Stats.MaxHP;
         }
 
         private readonly GridOccupancy occupancy = new GridOccupancy();
@@ -30,7 +34,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private TacticalCursorController cursor;
         private IExecutionMeter swingMeter;
 
-        private int baseAttackDamage = 10;
         private float moveStepDelaySeconds = 0.15f;
 
         private CombatUnit player;
@@ -48,15 +51,27 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             GridPresenter gridPresenter,
             TacticalCursorController tacticalCursor,
             IExecutionMeter executionMeter,
-            int attackDamage,
             float moveStepDelay)
         {
             events = combatEvents;
             grid = gridPresenter;
             cursor = tacticalCursor;
             swingMeter = executionMeter;
-            baseAttackDamage = attackDamage;
             moveStepDelaySeconds = moveStepDelay;
+
+            // Symmetric stat block — same shell for both sides, so the
+            // matchup the player feels is the element/QTE/positioning axis
+            // (the actual M1.5 deliverables) rather than stat asymmetry.
+            // Tuning is M2 work; numbers picked so a Hit reads ~17 dmg and a
+            // Divine reads ~26 dmg under the canonical Light↔Dark advantage.
+            CombatStats sharedStats = new CombatStats(
+                maxHP: 100,
+                maxMP: 0,
+                attack: 15,
+                defense: 80,
+                specialAttack: 0,
+                specialDefense: 80,
+                speed: 10);
 
             player = new CombatUnit
             {
@@ -64,20 +79,35 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 Faction = Faction.Player,
                 Coord = new GridCoord(1, 1),
                 SpawnCoord = new GridCoord(1, 1),
-                Hp = 100,
-                MaxHp = 100,
+                Stats = sharedStats,
+                Element = ElementType.Light,
+                BasicAttack = new AbilitySpec(
+                    name: "Radiant Cleave",
+                    kind: AbilityKind.Physical,
+                    element: ElementType.Light,
+                    power: 10,
+                    scaling: 1.0f),
                 MoveRange = 4
             };
+            player.Hp = player.MaxHp;
+
             enemy = new CombatUnit
             {
                 Id = new UnitId(2),
                 Faction = Faction.Enemy,
                 Coord = new GridCoord(6, 6),
                 SpawnCoord = new GridCoord(6, 6),
-                Hp = 100,
-                MaxHp = 100,
+                Stats = sharedStats,
+                Element = ElementType.Dark,
+                BasicAttack = new AbilitySpec(
+                    name: "Corruption Strike",
+                    kind: AbilityKind.Physical,
+                    element: ElementType.Dark,
+                    power: 10,
+                    scaling: 1.0f),
                 MoveRange = 4
             };
+            enemy.Hp = enemy.MaxHp;
 
             // Units are spawned by ResetSliceState (after CombatReset) — emit
             // the grid, then let the reset path do the single authoritative
@@ -229,6 +259,37 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursorCoord, state, hint));
+            RaiseDamageEstimate(state);
+        }
+
+        private void RaiseDamageEstimate(SelectionState state)
+        {
+            if (state != SelectionState.AttackValid)
+            {
+                events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                return;
+            }
+
+            // Cheapest call into the real pipeline: ask DamageCalculator for
+            // the Hit (1.0x) and Divine (1.5x) outcomes so the HUD can show
+            // "DMG 17 (Divine 26)" — the Gladius pattern of "1.0x estimate +
+            // critical upside" with the element multiplier baked in already.
+            DamageBreakdown hit = DamageCalculator.ComputeDamage(
+                activeUnit.Stats, activeUnit.Element,
+                otherUnit.Stats, otherUnit.Element,
+                activeUnit.BasicAttack, ExecutionResult.Hit);
+
+            DamageBreakdown divine = DamageCalculator.ComputeDamage(
+                activeUnit.Stats, activeUnit.Element,
+                otherUnit.Stats, otherUnit.Element,
+                activeUnit.BasicAttack, ExecutionResult.Divine);
+
+            events.RaiseDamageEstimateChanged(new DamageEstimateEvent(
+                hit.FinalDamage,
+                divine.FinalDamage,
+                activeUnit.BasicAttack.Element,
+                otherUnit.Element,
+                hit.ElementMultiplier));
         }
 
         private void HandleConfirm()
@@ -249,7 +310,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 }
                 else
                 {
-                    ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
+                    // Enemy doesn't QTE — treat as a baseline Hit.
+                    ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
                     EndTurn();
                 }
 
@@ -275,7 +337,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             if (swingMeter == null || !swingMeter.IsAvailable)
             {
-                ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
+                // No QTE available — fall through with a baseline Hit.
+                ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
                 EndTurn();
                 return;
             }
@@ -292,6 +355,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             events.RaisePathPreviewChanged(System.Array.Empty<GridCoord>());
+            events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
             swingMeter.Begin();
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, "Confirm: Stop Swing"));
         }
@@ -317,8 +381,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ExecutionResult tier = swingMeter.StopAndEvaluate(out float multiplier, out _);
             events.RaiseExecutionGraded(new ExecutionGradedEvent(tier, multiplier));
 
-            int damage = Mathf.Max(0, Mathf.RoundToInt(baseAttackDamage * multiplier));
-            ResolveAttack(activeUnit, otherUnit, damage);
+            // Real pipeline: the tier feeds DamageCalculator directly via
+            // ResolveAttack, so element matchup and mitigation actually count.
+            ResolveAttack(activeUnit, otherUnit, tier);
 
             if (cursor != null)
             {
@@ -363,8 +428,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             EndTurn();
         }
 
-        private void ResolveAttack(CombatUnit attacker, CombatUnit defender, int damage)
+        private void ResolveAttack(CombatUnit attacker, CombatUnit defender, ExecutionResult execution)
         {
+            DamageBreakdown bd = DamageCalculator.ComputeDamage(
+                attacker.Stats, attacker.Element,
+                defender.Stats, defender.Element,
+                attacker.BasicAttack, execution);
+
+            int damage = bd.FinalDamage;
             defender.Hp = Mathf.Max(0, defender.Hp - damage);
             events.RaiseUnitDamaged(new UnitDamagedEvent(defender.Id, damage, defender.Hp, defender.MaxHp));
 
@@ -411,7 +482,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             int distance = GridMath.ManhattanDistance(activeUnit.Coord, otherUnit.Coord);
             if (distance == 1)
             {
-                ResolveAttack(activeUnit, otherUnit, baseAttackDamage);
+                ResolveAttack(activeUnit, otherUnit, ExecutionResult.Hit);
                 EndTurn();
                 yield break;
             }

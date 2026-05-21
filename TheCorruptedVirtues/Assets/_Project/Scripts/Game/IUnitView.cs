@@ -16,6 +16,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // Brief "I got hit" feedback.
         void PlayHitFlash();
 
+        // Update any view-side HP display (floating bar, ring, etc). Logic
+        // still owns the canonical HP — this is purely presentation.
+        void UpdateHp(int current, int max);
+
         void SetVisible(bool visible);
 
         void Despawn();

@@ -8,7 +8,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
     // (emits the opening GridBuilt / UnitSpawned).
     public sealed class CombatSliceBootstrap : MonoBehaviour
     {
-        [SerializeField] private int baseAttackDamage = 10;
         [SerializeField] private float moveStepDelaySeconds = 0.15f;
 
         private void Awake()
@@ -31,7 +30,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             CombatSliceOrchestrator orchestrator =
                 CreateChild("Orchestrator").AddComponent<CombatSliceOrchestrator>();
-            orchestrator.Initialize(events, grid, cursor, swingMeter, baseAttackDamage, moveStepDelaySeconds);
+            orchestrator.Initialize(events, grid, cursor, swingMeter, moveStepDelaySeconds);
         }
 
         private GameObject CreateChild(string childName)
@@ -90,11 +89,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             GameObject pathObject = CreateChild("PathPreview");
             LineRenderer line = pathObject.AddComponent<LineRenderer>();
-            line.widthMultiplier = 0.08f;
+            // Thicker + brighter than the original cyan-on-grey, which was
+            // nearly invisible in the M1 playtest screenshot.
+            line.widthMultiplier = 0.14f;
             line.material = new Material(Shader.Find("Sprites/Default"));
-            line.startColor = new Color(0.4f, 0.85f, 1f);
-            line.endColor = new Color(0.4f, 0.85f, 1f);
-            line.numCornerVertices = 2;
+            Color pathColor = new Color(1f, 0.92f, 0.35f);
+            line.startColor = pathColor;
+            line.endColor = pathColor;
+            line.numCornerVertices = 4;
+            line.numCapVertices = 4;
             line.positionCount = 0;
 
             PathPreviewRenderer preview = pathObject.AddComponent<PathPreviewRenderer>();

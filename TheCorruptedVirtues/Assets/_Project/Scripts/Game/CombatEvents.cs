@@ -18,6 +18,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<Faction> TurnChanged;
         public event Action<SelectionChangedEvent> SelectionChanged;
         public event Action<IReadOnlyList<GridCoord>> PathPreviewChanged;
+        public event Action<DamageEstimateEvent> DamageEstimateChanged;
         public event Action<ExecutionGradedEvent> ExecutionGraded;
         public event Action<Faction> CombatEnded;
         public event Action CombatReset;
@@ -30,6 +31,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseTurnChanged(Faction active) => TurnChanged?.Invoke(active);
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(IReadOnlyList<GridCoord> path) => PathPreviewChanged?.Invoke(path);
+        public void RaiseDamageEstimateChanged(DamageEstimateEvent e) => DamageEstimateChanged?.Invoke(e);
         public void RaiseExecutionGraded(ExecutionGradedEvent e) => ExecutionGraded?.Invoke(e);
         public void RaiseCombatEnded(Faction winner) => CombatEnded?.Invoke(winner);
         public void RaiseCombatReset() => CombatReset?.Invoke();
@@ -115,5 +117,35 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Tier = tier;
             Multiplier = multiplier;
         }
+    }
+
+    // Gladius-style damage forecast surfaced when the cursor is on a valid
+    // attack target. HasEstimate=false means "no attack hovered, clear the
+    // readout"; the default(struct) value is the cleared form by design.
+    public readonly struct DamageEstimateEvent
+    {
+        public readonly bool HasEstimate;
+        public readonly int HitDamage;
+        public readonly int DivineDamage;
+        public readonly ElementType AttackerElement;
+        public readonly ElementType DefenderElement;
+        public readonly float ElementMultiplier;
+
+        public DamageEstimateEvent(
+            int hitDamage,
+            int divineDamage,
+            ElementType attackerElement,
+            ElementType defenderElement,
+            float elementMultiplier)
+        {
+            HasEstimate = true;
+            HitDamage = hitDamage;
+            DivineDamage = divineDamage;
+            AttackerElement = attackerElement;
+            DefenderElement = defenderElement;
+            ElementMultiplier = elementMultiplier;
+        }
+
+        public static DamageEstimateEvent Cleared => default;
     }
 }

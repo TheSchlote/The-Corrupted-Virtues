@@ -30,10 +30,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // Float the line slightly above the cursor's hover height so the
+            // path reads cleanly over the ground plane instead of z-fighting it.
+            float lineY = gridPresenter.CursorY + 0.18f;
             lineRenderer.positionCount = path.Count;
             for (int i = 0; i < path.Count; i++)
             {
-                Vector3 world = gridPresenter.GridToWorld(path[i], gridPresenter.CursorY);
+                Vector3 world = gridPresenter.GridToWorld(path[i], lineY);
                 lineRenderer.SetPosition(i, world);
             }
         }
