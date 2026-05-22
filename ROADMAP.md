@@ -4,7 +4,7 @@
 > yours to redirect as the game evolves. Claude reads this for design/scope intent.
 > World & story live in [docs/LORE.md](docs/LORE.md) and [docs/STORY.md](docs/STORY.md).
 >
-> _Last reviewed: 2026-05-21_
+> _Last reviewed: 2026-05-22_
 
 ---
 
@@ -146,12 +146,22 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] Enemy AI per unit: nearest-living-player heuristic, same move+attack rule as player
 - [x] Win condition: faction wipe (all of one side dead → other side wins)
 
-- [ ] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE)
+**Slice 2 — Abilities + MP + button-mash QTE** ✅ _shipped on `feature/m2-abilities-mp-qte` (2026-05-22)_
+- [x] Per-unit ability list (index 0 = free basic attack) + MP; cycle the active ability with **C** / gamepad **North**; HUD selector shows the ability, MP cost/pool, and QTE type + difficulty
+- [x] MP model: spent on commit (a whiffed QTE still costs it), gated when unaffordable; whole-battle budget (starts full, no passive regen), basic attack free
+- [x] Physical / Special / Support kinds: Support heals self or an adjacent ally via pure-C# `HealCalculator`; green heal forecast (no red HP overlay)
+- [x] **Risk/reward gradient:** stronger swing abilities graded on a tighter Divine window (`ExecutionCalculator` parameterized by `QteDifficulty`; the painted meter zones track the grader)
+- [x] **QTE framework:** `IExecutionMeter` generalized to a Tick-driven seam + a `QteType`→meter registry so types with different interactions coexist; **button mash** is the first new concrete type (fill-bar, difficulty-scaled press target)
+- [x] Pure-C# core (MP / QTE-difficulty / button-mash / heal calculators) with 19 EditMode tests pinning it (77 total, all green)
+- [x] Enemy AI uses its basic attack this slice (enemy ability/MP use deferred)
+
+- [x] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE) _(slice 2)_
 - [ ] **Pulled forward from M3:** grid elevation/terrain (high ground bonus). Identified in the M1 playtest as a fun-prerequisite — needed in M2 so positioning becomes a real choice.
 - [ ] **Facing / flanking:** unit facing + back/side attack modifiers; facing arrow indicator. (New from M1 playtest — direct Gladius ask.)
 - [ ] Win / loss / battle-end flow; basic enemy AI _(terminal state landed in M1; AI + multi-unit flow remains)_
 - [ ] **Great Beast boss:** a 2×2 unit + **Corruption gauge** (purify-not-kill win condition)
-- [ ] Additional QTE types (button mash / timed press / matching)
+- [x] Additional QTE types — framework + **button mash** _(slice 2)_
+- [ ] More QTE types: timed press, matching _(later slice)_
 - [ ] Decompose god-controller → TurnSystem / AttackSystem / Hud (driven by need)
 - [ ] Digimon-Survive stat-semantics pass _(element matchup UI shipped in M1.5)_
 - [ ] → tag `v0.2.0`
