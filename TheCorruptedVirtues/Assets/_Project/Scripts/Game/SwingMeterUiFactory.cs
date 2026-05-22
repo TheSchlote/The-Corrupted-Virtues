@@ -13,13 +13,29 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             public readonly GameObject Root;
             public readonly Slider Slider;
             public readonly TMP_Text Text;
+            // The three difficulty-dependent zones, handed back so the
+            // controller can resize them to match the grader's window for the
+            // ability being attempted (M2 slice 2). Fumble/Miss are fixed.
+            public readonly RectTransform HitZone;
+            public readonly RectTransform DivineZone;
+            public readonly RectTransform OvershootZone;
 
-            public SwingMeterUi(Canvas canvas, GameObject root, Slider slider, TMP_Text text)
+            public SwingMeterUi(
+                Canvas canvas,
+                GameObject root,
+                Slider slider,
+                TMP_Text text,
+                RectTransform hitZone,
+                RectTransform divineZone,
+                RectTransform overshootZone)
             {
                 Canvas = canvas;
                 Root = root;
                 Slider = slider;
                 Text = text;
+                HitZone = hitZone;
+                DivineZone = divineZone;
+                OvershootZone = overshootZone;
             }
         }
 
@@ -42,10 +58,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             rootRect.offsetMin = Vector2.zero;
             rootRect.offsetMax = Vector2.zero;
 
-            Slider slider = CreateSlider(root.transform);
+            Slider slider = CreateSlider(
+                root.transform,
+                out RectTransform hitZone,
+                out RectTransform divineZone,
+                out RectTransform overshootZone);
             TMP_Text text = CreateText(root.transform);
 
-            return new SwingMeterUi(canvas, root, slider, text);
+            return new SwingMeterUi(canvas, root, slider, text, hitZone, divineZone, overshootZone);
         }
 
         private static Canvas CreateCanvas()
@@ -53,7 +73,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return UiCanvas.CreateOverlay("SwingMeterCanvas");
         }
 
-        private static Slider CreateSlider(Transform parent)
+        private static Slider CreateSlider(
+            Transform parent,
+            out RectTransform hitZone,
+            out RectTransform divineZone,
+            out RectTransform overshootZone)
         {
             GameObject sliderObject = new GameObject("ExecutionSlider");
             sliderObject.transform.SetParent(parent, false);
@@ -76,15 +100,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             slider.interactable = false;
             slider.navigation = new Navigation { mode = Navigation.Mode.None };
 
-            // Zone boundaries must mirror ExecutionCalculator's constants —
-            // they're how the player reads what tier they're aiming for.
-            // The overshoot zone past Divine uses the same orange as Miss so
-            // the player learns "orange = whiff" no matter where it appears.
+            // Zone boundaries default to the Normal layout and mirror
+            // ExecutionCalculator's constants — they're how the player reads
+            // what tier they're aiming for. The Hit/Divine/Overshoot zones are
+            // repositioned per ability by SwingMeterController.Begin so the
+            // painted bands always match the grader. The overshoot zone past
+            // Divine uses the same orange as Miss so the player learns
+            // "orange = whiff" no matter where it appears.
             CreateZone(sliderObject.transform, "ZoneFumble", 0.0f, 0.20f, new Color(0.45f, 0.1f, 0.1f, 0.5f));
             CreateZone(sliderObject.transform, "ZoneMiss", 0.20f, 0.40f, new Color(0.55f, 0.4f, 0.1f, 0.5f));
-            CreateZone(sliderObject.transform, "ZoneHit", 0.40f, 0.85f, new Color(0.1f, 0.5f, 0.2f, 0.4f));
-            CreateZone(sliderObject.transform, "ZoneDivine", 0.85f, 0.92f, new Color(0.2f, 0.45f, 0.75f, 0.5f));
-            CreateZone(sliderObject.transform, "ZoneOvershoot", 0.92f, 1.0f, new Color(0.55f, 0.4f, 0.1f, 0.5f));
+            hitZone = CreateZone(sliderObject.transform, "ZoneHit", 0.40f, 0.85f, new Color(0.1f, 0.5f, 0.2f, 0.4f));
+            divineZone = CreateZone(sliderObject.transform, "ZoneDivine", 0.85f, 0.92f, new Color(0.2f, 0.45f, 0.75f, 0.5f));
+            overshootZone = CreateZone(sliderObject.transform, "ZoneOvershoot", 0.92f, 1.0f, new Color(0.55f, 0.4f, 0.1f, 0.5f));
 
             GameObject fillAreaObject = new GameObject("Fill Area");
             fillAreaObject.transform.SetParent(sliderObject.transform, false);
@@ -119,7 +146,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return slider;
         }
 
-        private static void CreateZone(Transform parent, string name, float minX, float maxX, Color color)
+        private static RectTransform CreateZone(Transform parent, string name, float minX, float maxX, Color color)
         {
             GameObject zoneObject = new GameObject(name);
             zoneObject.transform.SetParent(parent, false);
@@ -133,6 +160,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Image zoneImage = zoneObject.AddComponent<Image>();
             zoneImage.color = color;
             zoneImage.raycastTarget = false;
+
+            return rectTransform;
         }
 
         private static TMP_Text CreateText(Transform parent)

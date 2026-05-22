@@ -49,6 +49,20 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        public bool CycleAbilityPressed
+        {
+            get
+            {
+                Keyboard kb = Keyboard.current;
+                Gamepad gp = Gamepad.current;
+                bool keyboard = kb != null && kb.cKey.wasPressedThisFrame;
+                // North button = Y (Xbox) / Triangle (PlayStation). Free in the
+                // core loop and reads as "switch action."
+                bool gamepad = gp != null && gp.buttonNorth.wasPressedThisFrame;
+                return keyboard || gamepad;
+            }
+        }
+
         public Vector2Int MoveAxis
         {
             get
