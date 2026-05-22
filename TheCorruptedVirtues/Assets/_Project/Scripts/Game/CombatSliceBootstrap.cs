@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using TheCorruptedVirtues.Combat;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -18,6 +20,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Renderer cursorRenderer = CreateCursor(grid, cameraTransform, out TacticalCursorController cursor);
             PathPreviewRenderer pathPreview = CreatePathPreview(grid);
             IExecutionMeter swingMeter = CreateSwingMeter();
+            IExecutionMeter buttonMashMeter = CreateButtonMashMeter();
+            Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>
+            {
+                { QteType.SwingMeter, swingMeter },
+                { QteType.ButtonMash, buttonMashMeter },
+            };
 
             CombatEvents events = new CombatEvents();
             IUnitViewFactory unitFactory = new PrimitiveUnitViewFactory(CreateChild("UnitViews").transform);
@@ -31,7 +39,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             CombatSliceOrchestrator orchestrator =
                 CreateChild("Orchestrator").AddComponent<CombatSliceOrchestrator>();
-            orchestrator.Initialize(events, grid, cursor, swingMeter, moveStepDelaySeconds);
+            orchestrator.Initialize(events, grid, cursor, meters, moveStepDelaySeconds);
         }
 
         private GameObject CreateChild(string childName)
@@ -132,6 +140,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             SwingMeterUiFactory.SwingMeterUi ui = SwingMeterUiFactory.Build();
             SwingMeterController meter = ui.Root.AddComponent<SwingMeterController>();
             meter.SetReferences(ui.Root, ui.Slider, ui.Text, ui.HitZone, ui.DivineZone, ui.OvershootZone);
+            return meter;
+        }
+
+        private IExecutionMeter CreateButtonMashMeter()
+        {
+            ButtonMashUiFactory.ButtonMashUi ui = ButtonMashUiFactory.Build();
+            ButtonMashController meter = ui.Root.AddComponent<ButtonMashController>();
+            meter.SetReferences(ui.Root, ui.Slider, ui.Text);
             return meter;
         }
     }

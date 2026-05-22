@@ -52,7 +52,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private CombatEvents events;
         private GridPresenter grid;
         private TacticalCursorController cursor;
-        private IExecutionMeter swingMeter;
+        private readonly Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>();
+        private IExecutionMeter currentMeter;
 
         private float moveStepDelaySeconds = 0.15f;
 
@@ -60,7 +61,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private CombatUnit currentAttackTarget;
         private AbilitySpec currentAbility;
         private bool isMoving;
-        private bool isAwaitingSwingStop;
+        private bool isAwaitingQte;
         private bool isCombatOver;
         private bool started;
 
@@ -75,13 +76,20 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             CombatEvents combatEvents,
             GridPresenter gridPresenter,
             TacticalCursorController tacticalCursor,
-            IExecutionMeter executionMeter,
+            IReadOnlyDictionary<QteType, IExecutionMeter> executionMeters,
             float moveStepDelay)
         {
             events = combatEvents;
             grid = gridPresenter;
             cursor = tacticalCursor;
-            swingMeter = executionMeter;
+            meters.Clear();
+            if (executionMeters != null)
+            {
+                foreach (KeyValuePair<QteType, IExecutionMeter> entry in executionMeters)
+                {
+                    meters[entry.Key] = entry.Value;
+                }
+            }
             moveStepDelaySeconds = moveStepDelay;
 
             BuildSquads();
@@ -128,6 +136,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
                 new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
+                new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
             }));
             allUnits.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
             {
@@ -187,11 +196,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            if (isAwaitingSwingStop)
+            if (isAwaitingQte)
             {
-                if (GameInput.Current.ConfirmPressed)
+                if (currentMeter != null
+                    && currentMeter.Tick(GameInput.Current.ConfirmPressed, out ExecutionResult qteTier, out float qteMultiplier))
                 {
-                    ResolvePlayerSwingStop();
+                    OnQteComplete(qteTier, qteMultiplier);
                 }
 
                 return;
@@ -227,10 +237,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void ResetSliceState()
         {
             isMoving = false;
-            isAwaitingSwingStop = false;
+            isAwaitingQte = false;
             isCombatOver = false;
             currentAttackTarget = null;
-            swingMeter?.Cancel();
+            currentAbility = null;
+            currentMeter = null;
+            foreach (IExecutionMeter meter in meters.Values)
+            {
+                meter?.Cancel();
+            }
 
             foreach (CombatUnit unit in allUnits)
             {
@@ -455,11 +470,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 activeUnit.SelectedAbilityIndex, activeUnit.Abilities.Count));
         }
 
-        // Slice 2 wires only the swing meter; the registry that maps each
-        // QteType to its own meter arrives with the button-mash type.
         private string QteDisplayName(QteType type)
         {
-            return swingMeter != null ? swingMeter.DisplayName : "QTE";
+            return meters.TryGetValue(type, out IExecutionMeter meter) && meter != null
+                ? meter.DisplayName
+                : "QTE";
         }
 
         private void UpdatePreview()
@@ -706,22 +721,25 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             activeUnit.Mp = Mathf.Max(0, activeUnit.Mp - currentAbility.MpCost);
             RaiseAbilitySelection();
 
-            if (swingMeter == null || !swingMeter.IsAvailable)
+            currentMeter = ResolveMeter(currentAbility.QteType);
+
+            if (currentMeter == null || !currentMeter.IsAvailable)
             {
                 ResolveAbility(activeUnit, currentAttackTarget, currentAbility, ExecutionResult.Hit);
                 currentAttackTarget = null;
                 currentAbility = null;
+                currentMeter = null;
                 hasAttackedThisTurn = true;
                 EndUnitTurn();
                 return;
             }
 
-            if (isAwaitingSwingStop)
+            if (isAwaitingQte)
             {
                 return;
             }
 
-            isAwaitingSwingStop = true;
+            isAwaitingQte = true;
             if (cursor != null)
             {
                 cursor.IsLocked = true;
@@ -729,35 +747,23 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
-            swingMeter.Begin(currentAbility.QteDifficulty);
-            string stopHint = currentAbility.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing";
-            events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, stopHint));
+            currentMeter.Begin(currentAbility.QteDifficulty);
+
+            string hint = currentAbility.QteType == QteType.ButtonMash
+                ? "Mash Confirm!"
+                : (currentAbility.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing");
+            events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, hint));
         }
 
-        private void ResolvePlayerSwingStop()
+        private void OnQteComplete(ExecutionResult tier, float multiplier)
         {
-            if (!isAwaitingSwingStop)
-            {
-                return;
-            }
-
-            isAwaitingSwingStop = false;
-            if (swingMeter == null || !swingMeter.IsAvailable)
-            {
-                if (cursor != null)
-                {
-                    cursor.IsLocked = false;
-                }
-
-                return;
-            }
-
-            ExecutionResult tier = swingMeter.StopAndEvaluate(out float multiplier, out _);
+            isAwaitingQte = false;
             events.RaiseExecutionGraded(new ExecutionGradedEvent(tier, multiplier));
 
             ResolveAbility(activeUnit, currentAttackTarget, currentAbility, tier);
             currentAttackTarget = null;
             currentAbility = null;
+            currentMeter = null;
             hasAttackedThisTurn = true;
 
             if (cursor != null)
@@ -766,6 +772,26 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             EndUnitTurn();
+        }
+
+        // Pick the meter for an ability's QTE type, falling back to any
+        // available meter so a missing registration can never softlock a turn.
+        private IExecutionMeter ResolveMeter(QteType type)
+        {
+            if (meters.TryGetValue(type, out IExecutionMeter meter) && meter != null)
+            {
+                return meter;
+            }
+
+            foreach (IExecutionMeter fallback in meters.Values)
+            {
+                if (fallback != null && fallback.IsAvailable)
+                {
+                    return fallback;
+                }
+            }
+
+            return null;
         }
 
         private void BeginMove(List<GridCoord> path, Action onComplete)

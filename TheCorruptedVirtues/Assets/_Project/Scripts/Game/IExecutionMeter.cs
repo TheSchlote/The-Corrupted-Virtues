@@ -3,18 +3,18 @@ using TheCorruptedVirtues.Combat;
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
     // The pluggable timed-input "Execution" challenge seam (the Gladius-style
-    // QTE). The swing meter is the first concrete type; button-mash /
-    // timed-press / matching variants implement this same contract later, so
-    // nothing downstream should depend on a concrete meter. The QTE grading
-    // math stays in the pure core (ExecutionCalculator / ExecutionModifiers);
-    // this interface is only the runtime lifecycle of presenting one.
+    // QTE). Each concrete type owns its *whole* interaction — the swing meter
+    // stops on a single confirm press; button mash counts presses until its
+    // window closes — and the orchestrator drives them all uniformly through
+    // Tick, so nothing downstream depends on a concrete meter. The grading
+    // math stays in the pure core (ExecutionCalculator / ButtonMashCalculator).
     public interface IExecutionMeter
     {
         // True when this meter can run (e.g. its component is enabled). When
         // false, combat falls back to flat damage with no QTE.
         bool IsAvailable { get; }
 
-        // True between Begin() and StopAndEvaluate()/Cancel().
+        // True between Begin() and completion / Cancel().
         bool IsRunning { get; }
 
         // Player-facing label for the QTE variant (e.g. "Swing Meter",
@@ -22,14 +22,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // timing check they're about to do — direct M1 playtest ask.
         string DisplayName { get; }
 
-        // Start the challenge: show it and begin the timed input. The
-        // difficulty lets a meter scale its grading per ability (the swing
-        // meter narrows its Divine window; button mash raises its target).
+        // Start the challenge at the given difficulty: show it and begin the
+        // timed input. The difficulty lets a meter scale its grading per
+        // ability (the swing meter narrows its Divine window; button mash
+        // raises its target press count).
         void Begin(QteDifficulty difficulty);
 
-        // Stop and grade the current input. Returns the discrete tier and
-        // outputs the damage multiplier plus the raw [0,1] input value.
-        ExecutionResult StopAndEvaluate(out float multiplier, out float normalizedValue);
+        // Advance one frame, consuming the confirm edge (true on the frame
+        // Confirm was pressed). Returns true once the challenge has completed
+        // and graded — result and multiplier are valid only then. Called every
+        // frame by the orchestrator while a QTE is in progress.
+        bool Tick(bool confirmPressed, out ExecutionResult result, out float multiplier);
 
         // Abort without grading (e.g. on combat reset).
         void Cancel();

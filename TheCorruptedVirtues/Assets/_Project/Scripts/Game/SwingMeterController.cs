@@ -93,20 +93,28 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             StartMeterLoop();
         }
 
-        public ExecutionResult StopAndEvaluate(out float multiplier, out float normalizedValue)
+        public bool Tick(bool confirmPressed, out ExecutionResult result, out float multiplier)
         {
+            result = ExecutionResult.Hit;
+            multiplier = 1.0f;
+
+            // The swing meter stops on a single confirm press; otherwise it
+            // keeps cycling (the animation runs in its own coroutine).
+            if (!IsRunning || !confirmPressed)
+            {
+                return false;
+            }
+
             if (!EnsureReady())
             {
-                multiplier = 1.0f;
-                normalizedValue = 0.0f;
-                return ExecutionResult.Hit;
+                return false;
             }
 
             StopMeterLoop();
             StartPulse();
 
-            normalizedValue = executionSlider != null ? executionSlider.value : 0.0f;
-            ExecutionResult result = executionCalculator.Evaluate(normalizedValue);
+            float normalizedValue = executionSlider != null ? executionSlider.value : 0.0f;
+            result = executionCalculator.Evaluate(normalizedValue);
             multiplier = ExecutionModifiers.GetDamageMultiplier(result);
 
             if (statusText != null && !string.IsNullOrEmpty(resultFormat))
@@ -115,7 +123,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             StartHideAfterStop();
-            return result;
+            return true;
         }
 
         public void Cancel()
