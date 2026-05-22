@@ -26,6 +26,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitSpawned += OnUnitSpawned;
             events.UnitMoved += OnUnitMoved;
             events.UnitDamaged += OnUnitDamaged;
+            events.UnitHealed += OnUnitHealed;
             events.UnitDied += OnUnitDied;
             events.DamageEstimateChanged += OnDamageEstimateChanged;
             events.ActiveUnitChanged += OnActiveUnitChanged;
@@ -42,6 +43,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitSpawned -= OnUnitSpawned;
             events.UnitMoved -= OnUnitMoved;
             events.UnitDamaged -= OnUnitDamaged;
+            events.UnitHealed -= OnUnitHealed;
             events.UnitDied -= OnUnitDied;
             events.DamageEstimateChanged -= OnDamageEstimateChanged;
             events.ActiveUnitChanged -= OnActiveUnitChanged;
@@ -86,6 +88,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ClearActiveDamagePreview();
         }
 
+        private void OnUnitHealed(UnitHealedEvent e)
+        {
+            if (views.TryGetValue(e.Id, out IUnitView view))
+            {
+                // HP bar rises; no hit flash — this is friendly feedback.
+                view.UpdateHp(e.Hp, e.MaxHp);
+            }
+
+            ClearActiveDamagePreview();
+        }
+
         private void OnUnitDied(UnitId id)
         {
             if (views.TryGetValue(id, out IUnitView view))
@@ -103,6 +116,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ClearActiveDamagePreview();
 
             if (!e.HasEstimate)
+            {
+                return;
+            }
+
+            // Heal forecasts don't paint the red "HP you'd lose" overlay.
+            if (e.IsHeal)
             {
                 return;
             }

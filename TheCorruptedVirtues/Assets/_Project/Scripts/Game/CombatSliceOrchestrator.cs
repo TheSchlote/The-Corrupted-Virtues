@@ -25,13 +25,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             public GridCoord Coord;
             public GridCoord SpawnCoord;
             public int Hp;
+            public int Mp;
             public CombatStats Stats;
             public ElementType Element;
-            public AbilitySpec BasicAttack;
+            public List<AbilitySpec> Abilities;
+            public int SelectedAbilityIndex;
             public int MoveRange;
 
             public int MaxHp => Stats.MaxHP;
+            public int MaxMp => Stats.MaxMP;
             public bool IsAlive => Hp > 0;
+            public AbilitySpec BasicAttack => Abilities[0];
+            public AbilitySpec SelectedAbility => Abilities[SelectedAbilityIndex];
         }
 
         private readonly GridOccupancy occupancy = new GridOccupancy();
@@ -53,6 +58,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private CombatUnit activeUnit;
         private CombatUnit currentAttackTarget;
+        private AbilitySpec currentAbility;
         private bool isMoving;
         private bool isAwaitingSwingStop;
         private bool isCombatOver;
@@ -88,43 +94,58 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         // 2v2 squads with four distinct elements so a single fight surfaces
         // multiple matchups (Light↔Dark mutual STRONG, Fire↔Water STRONG one
-        // direction, plus the neutral cross-pairs). Spawn data is hardcoded
-        // here for M2 slice 1; ScriptableObjects come later.
+        // direction, plus the neutral cross-pairs). M2 slice 2: each unit now
+        // carries an ability list (index 0 = the free basic attack) and MP.
+        // Players get a second ability that costs MP and is graded harder
+        // (the risk/reward gradient); one player unit's is a Support heal.
+        // Spawn data stays hardcoded here; ScriptableObjects come later.
         private void BuildSquads()
         {
             allUnits.Clear();
 
-            CombatStats fastBlock = new CombatStats(
-                maxHP: 90, maxMP: 0,
+            CombatStats lightFast = new CombatStats(
+                maxHP: 90, maxMP: 20,
                 attack: 16, defense: 70,
-                specialAttack: 0, specialDefense: 70,
+                specialAttack: 14, specialDefense: 70,
                 speed: 14);
-            CombatStats sturdyBlock = new CombatStats(
-                maxHP: 110, maxMP: 0,
+            CombatStats fireSturdy = new CombatStats(
+                maxHP: 110, maxMP: 24,
                 attack: 14, defense: 90,
-                specialAttack: 0, specialDefense: 90,
+                specialAttack: 16, specialDefense: 90,
+                speed: 8);
+            CombatStats darkFast = new CombatStats(
+                maxHP: 90, maxMP: 20,
+                attack: 16, defense: 70,
+                specialAttack: 14, specialDefense: 70,
+                speed: 14);
+            CombatStats waterSturdy = new CombatStats(
+                maxHP: 110, maxMP: 24,
+                attack: 14, defense: 90,
+                specialAttack: 16, specialDefense: 90,
                 speed: 8);
 
-            allUnits.Add(MakeUnit(
-                id: 1, faction: Faction.Player, coord: new GridCoord(1, 1),
-                stats: fastBlock, element: ElementType.Light,
-                attackName: "Radiant Cleave"));
-            allUnits.Add(MakeUnit(
-                id: 2, faction: Faction.Player, coord: new GridCoord(1, 3),
-                stats: sturdyBlock, element: ElementType.Fire,
-                attackName: "Ember Strike"));
+            allUnits.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
+            {
+                new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
+                new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
+            }));
+            allUnits.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
+            {
+                new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
+                new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
+            }));
 
-            allUnits.Add(MakeUnit(
-                id: 3, faction: Faction.Enemy, coord: new GridCoord(6, 6),
-                stats: fastBlock, element: ElementType.Dark,
-                attackName: "Corruption Strike"));
-            allUnits.Add(MakeUnit(
-                id: 4, faction: Faction.Enemy, coord: new GridCoord(6, 4),
-                stats: sturdyBlock, element: ElementType.Water,
-                attackName: "Tidal Slash"));
+            allUnits.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
+            {
+                new AbilitySpec("Corruption Strike", AbilityKind.Physical, ElementType.Dark, power: 10, scaling: 1.0f),
+            }));
+            allUnits.Add(MakeUnit(4, Faction.Enemy, new GridCoord(6, 4), waterSturdy, ElementType.Water, new List<AbilitySpec>
+            {
+                new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
+            }));
         }
 
-        private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, string attackName)
+        private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, List<AbilitySpec> abilities)
         {
             CombatUnit unit = new CombatUnit
             {
@@ -134,10 +155,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 SpawnCoord = coord,
                 Stats = stats,
                 Element = element,
-                BasicAttack = new AbilitySpec(attackName, AbilityKind.Physical, element, power: 10, scaling: 1.0f),
+                Abilities = abilities,
+                SelectedAbilityIndex = 0,
                 MoveRange = 4
             };
             unit.Hp = unit.MaxHp;
+            unit.Mp = unit.MaxMp;
             return unit;
         }
 
@@ -182,6 +205,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            if (IsPlayerTurn && GameInput.Current.CycleAbilityPressed)
+            {
+                CycleSelectedAbility();
+                return;
+            }
+
             if (cursor != null && cursor.TryMoveCursor())
             {
                 UpdatePreview();
@@ -207,6 +236,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 unit.Coord = unit.SpawnCoord;
                 unit.Hp = unit.MaxHp;
+                unit.Mp = unit.MaxMp;
+                unit.SelectedAbilityIndex = 0;
             }
 
             events.RaiseCombatReset();
@@ -311,6 +342,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             activeUnit = roundQueue.Dequeue();
+            activeUnit.SelectedAbilityIndex = 0;
             hasMovedThisTurn = false;
             hasAttackedThisTurn = false;
             moveTrail.Clear();
@@ -326,6 +358,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                     cursor.IsLocked = false;
                     cursor.Initialize(activeUnit.Coord);
                 }
+                RaiseAbilitySelection();
                 UpdatePreview();
             }
             else
@@ -336,6 +369,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 }
                 events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                events.RaiseAbilitySelectionChanged(AbilitySelectionEvent.Cleared);
                 StartCoroutine(HandleEnemyTurn());
             }
         }
@@ -390,6 +424,42 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             BeginUnitTurn();
+        }
+
+        private void CycleSelectedAbility()
+        {
+            if (activeUnit == null || activeUnit.Abilities.Count <= 1)
+            {
+                return;
+            }
+
+            activeUnit.SelectedAbilityIndex =
+                (activeUnit.SelectedAbilityIndex + 1) % activeUnit.Abilities.Count;
+            RaiseAbilitySelection();
+            UpdatePreview();
+        }
+
+        private void RaiseAbilitySelection()
+        {
+            if (activeUnit == null || !IsPlayerTurn)
+            {
+                events.RaiseAbilitySelectionChanged(AbilitySelectionEvent.Cleared);
+                return;
+            }
+
+            AbilitySpec a = activeUnit.SelectedAbility;
+            bool canAfford = activeUnit.Mp >= a.MpCost;
+            events.RaiseAbilitySelectionChanged(new AbilitySelectionEvent(
+                a.Name, a.Kind, a.MpCost, activeUnit.Mp, activeUnit.MaxMp,
+                QteDisplayName(a.QteType), a.QteDifficulty, canAfford,
+                activeUnit.SelectedAbilityIndex, activeUnit.Abilities.Count));
+        }
+
+        // Slice 2 wires only the swing meter; the registry that maps each
+        // QteType to its own meter arrives with the button-mash type.
+        private string QteDisplayName(QteType type)
+        {
+            return swingMeter != null ? swingMeter.DisplayName : "QTE";
         }
 
         private void UpdatePreview()
@@ -460,20 +530,42 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void RaiseSelection(GridCoord cursorCoord, int totalSteps, int reachableSteps)
         {
             UpdateOccupancy();
+
+            AbilitySpec ability = activeUnit.SelectedAbility;
+            bool isSupport = ability.Kind == AbilityKind.Support;
+            bool affordable = activeUnit.Mp >= ability.MpCost;
+
             CombatUnit targetUnit = GetUnitAt(cursorCoord);
-            bool isEnemyTarget = targetUnit != null && targetUnit.Faction != activeUnit.Faction;
+            // Support can target the caster's own tile (self-heal).
+            if (isSupport && cursorCoord == activeUnit.Coord)
+            {
+                targetUnit = activeUnit;
+            }
+
             bool occupiedByOther = occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
             bool reachable = reachableSteps > 0 && !hasMovedThisTurn;
-            bool canAttack = !hasAttackedThisTurn
-                && isEnemyTarget
-                && GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord) == 1;
+
+            bool wantsTarget = false;
+            if (targetUnit != null && targetUnit.IsAlive)
+            {
+                int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
+                wantsTarget = isSupport
+                    ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
+                    : (targetUnit.Faction != activeUnit.Faction && dist == 1);
+            }
+            bool validAbilityTarget = wantsTarget && affordable && !hasAttackedThisTurn;
 
             SelectionState state;
             string hint;
-            if (canAttack)
+            if (validAbilityTarget)
             {
                 state = SelectionState.AttackValid;
-                hint = "Confirm: Attack";
+                hint = isSupport ? "Confirm: Heal" : "Confirm: Attack";
+            }
+            else if (wantsTarget && !hasAttackedThisTurn && !affordable)
+            {
+                state = SelectionState.Invalid;
+                hint = $"Not enough MP (need {ability.MpCost})";
             }
             else if (reachable && !occupiedByOther)
             {
@@ -494,10 +586,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursorCoord, state, hint));
-            RaiseDamageEstimate(state, targetUnit);
+            RaiseActionEstimate(state, targetUnit, ability);
         }
 
-        private void RaiseDamageEstimate(SelectionState state, CombatUnit targetUnit)
+        private void RaiseActionEstimate(SelectionState state, CombatUnit targetUnit, AbilitySpec ability)
         {
             if (state != SelectionState.AttackValid || targetUnit == null)
             {
@@ -505,26 +597,43 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            string qteName = QteDisplayName(ability.QteType);
+
+            if (ability.Kind == AbilityKind.Support)
+            {
+                HealBreakdown hitHeal = HealCalculator.ComputeHeal(activeUnit.Stats, ability, ExecutionResult.Hit);
+                HealBreakdown divineHeal = HealCalculator.ComputeHeal(activeUnit.Stats, ability, ExecutionResult.Divine);
+                events.RaiseDamageEstimateChanged(new DamageEstimateEvent(
+                    targetUnit.Id,
+                    hitHeal.FinalHeal,
+                    divineHeal.FinalHeal,
+                    ability.Element,
+                    targetUnit.Element,
+                    1.0f,
+                    ability.Name,
+                    qteName,
+                    isHeal: true));
+                return;
+            }
+
             DamageBreakdown hit = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
                 targetUnit.Stats, targetUnit.Element,
-                activeUnit.BasicAttack, ExecutionResult.Hit);
+                ability, ExecutionResult.Hit);
 
             DamageBreakdown divine = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
                 targetUnit.Stats, targetUnit.Element,
-                activeUnit.BasicAttack, ExecutionResult.Divine);
-
-            string qteName = swingMeter != null ? swingMeter.DisplayName : string.Empty;
+                ability, ExecutionResult.Divine);
 
             events.RaiseDamageEstimateChanged(new DamageEstimateEvent(
                 targetUnit.Id,
                 hit.FinalDamage,
                 divine.FinalDamage,
-                activeUnit.BasicAttack.Element,
+                ability.Element,
                 targetUnit.Element,
                 hit.ElementMultiplier,
-                activeUnit.BasicAttack.Name,
+                ability.Name,
                 qteName));
         }
 
@@ -536,16 +645,30 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             GridCoord target = cursor.CursorCoord;
-            CombatUnit targetUnit = GetUnitAt(target);
-            bool isEnemyTarget = targetUnit != null && targetUnit.Faction != activeUnit.Faction;
-            int distance = targetUnit != null
-                ? GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord)
-                : -1;
+            AbilitySpec ability = activeUnit.SelectedAbility;
+            bool isSupport = ability.Kind == AbilityKind.Support;
+            bool affordable = activeUnit.Mp >= ability.MpCost;
 
-            if (isEnemyTarget && distance == 1 && !hasAttackedThisTurn)
+            CombatUnit targetUnit = GetUnitAt(target);
+            if (isSupport && target == activeUnit.Coord)
+            {
+                targetUnit = activeUnit;
+            }
+
+            bool validTarget = false;
+            if (!hasAttackedThisTurn && affordable && targetUnit != null && targetUnit.IsAlive)
+            {
+                int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
+                validTarget = isSupport
+                    ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
+                    : (targetUnit.Faction != activeUnit.Faction && dist == 1);
+            }
+
+            if (validTarget)
             {
                 currentAttackTarget = targetUnit;
-                BeginPlayerAttack();
+                currentAbility = ability;
+                BeginAbilityExecution();
                 return;
             }
 
@@ -576,12 +699,19 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             BeginMove(truncated, () => OnPlayerMoveComplete(truncated));
         }
 
-        private void BeginPlayerAttack()
+        private void BeginAbilityExecution()
         {
+            // Spend MP up front: committing to the action costs MP regardless
+            // of how the QTE grades (a whiff wastes it — a real risk).
+            activeUnit.Mp = Mathf.Max(0, activeUnit.Mp - currentAbility.MpCost);
+            RaiseAbilitySelection();
+
             if (swingMeter == null || !swingMeter.IsAvailable)
             {
-                ResolveAttack(activeUnit, currentAttackTarget, ExecutionResult.Hit);
+                ResolveAbility(activeUnit, currentAttackTarget, currentAbility, ExecutionResult.Hit);
                 currentAttackTarget = null;
+                currentAbility = null;
+                hasAttackedThisTurn = true;
                 EndUnitTurn();
                 return;
             }
@@ -599,8 +729,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
-            swingMeter.Begin();
-            events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, "Confirm: Stop Swing"));
+            swingMeter.Begin(currentAbility.QteDifficulty);
+            string stopHint = currentAbility.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing";
+            events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, stopHint));
         }
 
         private void ResolvePlayerSwingStop()
@@ -624,8 +755,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ExecutionResult tier = swingMeter.StopAndEvaluate(out float multiplier, out _);
             events.RaiseExecutionGraded(new ExecutionGradedEvent(tier, multiplier));
 
-            ResolveAttack(activeUnit, currentAttackTarget, tier);
+            ResolveAbility(activeUnit, currentAttackTarget, currentAbility, tier);
             currentAttackTarget = null;
+            currentAbility = null;
             hasAttackedThisTurn = true;
 
             if (cursor != null)
@@ -686,25 +818,35 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             UpdatePreview();
         }
 
-        private void ResolveAttack(CombatUnit attacker, CombatUnit defender, ExecutionResult execution)
+        private void ResolveAbility(CombatUnit attacker, CombatUnit target, AbilitySpec ability, ExecutionResult execution)
         {
-            if (attacker == null || defender == null)
+            if (attacker == null || target == null || ability == null)
             {
+                return;
+            }
+
+            if (ability.Kind == AbilityKind.Support)
+            {
+                HealBreakdown heal = HealCalculator.ComputeHeal(attacker.Stats, ability, execution);
+                int before = target.Hp;
+                target.Hp = Mathf.Min(target.MaxHp, target.Hp + heal.FinalHeal);
+                int applied = target.Hp - before;
+                events.RaiseUnitHealed(new UnitHealedEvent(target.Id, applied, target.Hp, target.MaxHp));
                 return;
             }
 
             DamageBreakdown bd = DamageCalculator.ComputeDamage(
                 attacker.Stats, attacker.Element,
-                defender.Stats, defender.Element,
-                attacker.BasicAttack, execution);
+                target.Stats, target.Element,
+                ability, execution);
 
             int damage = bd.FinalDamage;
-            defender.Hp = Mathf.Max(0, defender.Hp - damage);
-            events.RaiseUnitDamaged(new UnitDamagedEvent(defender.Id, damage, defender.Hp, defender.MaxHp));
+            target.Hp = Mathf.Max(0, target.Hp - damage);
+            events.RaiseUnitDamaged(new UnitDamagedEvent(target.Id, damage, target.Hp, target.MaxHp));
 
-            if (defender.Hp <= 0)
+            if (target.Hp <= 0)
             {
-                events.RaiseUnitDied(defender.Id);
+                events.RaiseUnitDied(target.Id);
                 CheckWinCondition(attacker.Faction);
             }
         }
@@ -828,7 +970,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void ResolveEnemyAttackAndEnd()
         {
-            ResolveAttack(activeUnit, currentAttackTarget, ExecutionResult.Hit);
+            ResolveAbility(activeUnit, currentAttackTarget, activeUnit.BasicAttack, ExecutionResult.Hit);
             currentAttackTarget = null;
             hasAttackedThisTurn = true;
             EndUnitTurn();

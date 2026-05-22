@@ -14,6 +14,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<UnitSpawnedEvent> UnitSpawned;
         public event Action<UnitMovedEvent> UnitMoved;
         public event Action<UnitDamagedEvent> UnitDamaged;
+        // M2 slice 2: Support abilities heal an ally. Separate from
+        // UnitDamaged so views can react differently (HP rises, no hit flash,
+        // no damage popup).
+        public event Action<UnitHealedEvent> UnitHealed;
         public event Action<UnitId> UnitDied;
         public event Action<Faction> TurnChanged;
         // ActiveUnitChanged fires every time the active unit changes (M2:
@@ -28,6 +32,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<SelectionChangedEvent> SelectionChanged;
         public event Action<PathPreviewEvent> PathPreviewChanged;
         public event Action<DamageEstimateEvent> DamageEstimateChanged;
+        // M2 slice 2: which ability the active player unit has selected, plus
+        // its MP cost and the unit's current MP — drives the HUD ability
+        // selector line. Cleared (HasSelection=false) on enemy turns / end.
+        public event Action<AbilitySelectionEvent> AbilitySelectionChanged;
         public event Action<ExecutionGradedEvent> ExecutionGraded;
         public event Action<Faction> CombatEnded;
         public event Action CombatReset;
@@ -36,6 +44,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseUnitSpawned(UnitSpawnedEvent e) => UnitSpawned?.Invoke(e);
         public void RaiseUnitMoved(UnitMovedEvent e) => UnitMoved?.Invoke(e);
         public void RaiseUnitDamaged(UnitDamagedEvent e) => UnitDamaged?.Invoke(e);
+        public void RaiseUnitHealed(UnitHealedEvent e) => UnitHealed?.Invoke(e);
         public void RaiseUnitDied(UnitId id) => UnitDied?.Invoke(id);
         public void RaiseTurnChanged(Faction active) => TurnChanged?.Invoke(active);
         public void RaiseActiveUnitChanged(UnitId id) => ActiveUnitChanged?.Invoke(id);
@@ -43,6 +52,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(PathPreviewEvent e) => PathPreviewChanged?.Invoke(e);
         public void RaiseDamageEstimateChanged(DamageEstimateEvent e) => DamageEstimateChanged?.Invoke(e);
+        public void RaiseAbilitySelectionChanged(AbilitySelectionEvent e) => AbilitySelectionChanged?.Invoke(e);
         public void RaiseExecutionGraded(ExecutionGradedEvent e) => ExecutionGraded?.Invoke(e);
         public void RaiseCombatEnded(Faction winner) => CombatEnded?.Invoke(winner);
         public void RaiseCombatReset() => CombatReset?.Invoke();
@@ -106,6 +116,22 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         }
     }
 
+    public readonly struct UnitHealedEvent
+    {
+        public readonly UnitId Id;
+        public readonly int Amount;
+        public readonly int Hp;
+        public readonly int MaxHp;
+
+        public UnitHealedEvent(UnitId id, int amount, int hp, int maxHp)
+        {
+            Id = id;
+            Amount = amount;
+            Hp = hp;
+            MaxHp = maxHp;
+        }
+    }
+
     // Carries the full path plus the count of *step edges* that are within
     // the active unit's MoveRange. The view splits the line into a bright
     // in-range segment and a faded out-of-range continuation so the player
@@ -150,9 +176,56 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         }
     }
 
-    // Gladius-style damage forecast surfaced when the cursor is on a valid
-    // attack target. HasEstimate=false means "no attack hovered, clear the
-    // readout"; the default(struct) value is the cleared form by design.
+    // The active player unit's currently-selected ability, for the HUD
+    // selector line (M2 slice 2). HasSelection=false is the cleared form
+    // (enemy turn / combat over); default(struct) is that cleared form.
+    public readonly struct AbilitySelectionEvent
+    {
+        public readonly bool HasSelection;
+        public readonly string AbilityName;
+        public readonly AbilityKind Kind;
+        public readonly int MpCost;
+        public readonly int CurrentMp;
+        public readonly int MaxMp;
+        public readonly string QteName;
+        public readonly QteDifficulty Difficulty;
+        public readonly bool CanAfford;
+        public readonly int Index;
+        public readonly int Count;
+
+        public AbilitySelectionEvent(
+            string abilityName,
+            AbilityKind kind,
+            int mpCost,
+            int currentMp,
+            int maxMp,
+            string qteName,
+            QteDifficulty difficulty,
+            bool canAfford,
+            int index,
+            int count)
+        {
+            HasSelection = true;
+            AbilityName = abilityName;
+            Kind = kind;
+            MpCost = mpCost;
+            CurrentMp = currentMp;
+            MaxMp = maxMp;
+            QteName = qteName;
+            Difficulty = difficulty;
+            CanAfford = canAfford;
+            Index = index;
+            Count = count;
+        }
+
+        public static AbilitySelectionEvent Cleared => default;
+    }
+
+    // Gladius-style forecast surfaced when the cursor is on a valid action
+    // target. HasEstimate=false means "no action hovered, clear the readout";
+    // the default(struct) value is the cleared form by design. IsHeal flips it
+    // from a damage forecast (offensive) to a heal forecast (Support) — the
+    // HUD colours it differently and the unit view skips the red HP overlay.
     // TargetId lets per-unit views (e.g. an HP-bar damage overlay) respond.
     public readonly struct DamageEstimateEvent
     {
@@ -165,6 +238,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public readonly float ElementMultiplier;
         public readonly string AttackName;
         public readonly string QteName;
+        public readonly bool IsHeal;
 
         public DamageEstimateEvent(
             UnitId targetId,
@@ -174,7 +248,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ElementType defenderElement,
             float elementMultiplier,
             string attackName,
-            string qteName)
+            string qteName,
+            bool isHeal = false)
         {
             HasEstimate = true;
             TargetId = targetId;
@@ -185,6 +260,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ElementMultiplier = elementMultiplier;
             AttackName = attackName;
             QteName = qteName;
+            IsHeal = isHeal;
         }
 
         public static DamageEstimateEvent Cleared => default;

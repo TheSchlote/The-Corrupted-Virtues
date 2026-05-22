@@ -131,7 +131,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             SwingMeterUiFactory.SwingMeterUi ui = SwingMeterUiFactory.Build();
             SwingMeterController meter = ui.Root.AddComponent<SwingMeterController>();
-            meter.SetReferences(ui.Root, ui.Slider, ui.Text);
+            meter.SetReferences(ui.Root, ui.Slider, ui.Text, ui.HitZone, ui.DivineZone, ui.OvershootZone);
             return meter;
         }
     }

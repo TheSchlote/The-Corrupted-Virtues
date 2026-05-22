@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using TheCorruptedVirtues.Combat;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -29,6 +30,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private Image outcomePanel;
         private TMP_Text damageInfoText;
         private TMP_Text endTurnHintText;
+        private TMP_Text abilityText;
 
         public void Initialize(CombatEvents combatEvents)
         {
@@ -43,6 +45,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitDied += OnUnitDied;
             events.SelectionChanged += OnSelectionChanged;
             events.DamageEstimateChanged += OnDamageEstimateChanged;
+            events.AbilitySelectionChanged += OnAbilitySelectionChanged;
             events.CombatEnded += OnCombatEnded;
             events.CombatReset += OnCombatReset;
         }
@@ -59,6 +62,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitDied -= OnUnitDied;
             events.SelectionChanged -= OnSelectionChanged;
             events.DamageEstimateChanged -= OnDamageEstimateChanged;
+            events.AbilitySelectionChanged -= OnAbilitySelectionChanged;
             events.CombatEnded -= OnCombatEnded;
             events.CombatReset -= OnCombatReset;
         }
@@ -111,6 +115,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // Support forecast: a heal, not damage — green, no element matchup.
+            if (e.IsHeal)
+            {
+                string healHeader = string.IsNullOrEmpty(e.AttackName)
+                    ? string.Empty
+                    : $"<size=85%>{e.AttackName}  ·  {e.QteName}</size>\n";
+                damageInfoText.text =
+                    healHeader +
+                    $"<color=#7FE0A0>HEAL {e.HitDamage}</color>  <size=80%>(Divine {e.DivineDamage})</size>";
+                return;
+            }
+
             string matchupLabel;
             Color matchupColor;
             if (e.ElementMultiplier > 1.01f)
@@ -142,6 +158,32 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 $"<size=80%>{e.AttackerElement} → {e.DefenderElement}</size>  <color=#{hex}>{matchupLabel}</color>";
         }
 
+        private void OnAbilitySelectionChanged(AbilitySelectionEvent e)
+        {
+            if (abilityText == null)
+            {
+                return;
+            }
+
+            if (!e.HasSelection)
+            {
+                abilityText.text = string.Empty;
+                return;
+            }
+
+            string mp = e.MpCost > 0
+                ? $"{e.CurrentMp}/{e.MaxMp} MP · cost {e.MpCost}"
+                : $"{e.CurrentMp}/{e.MaxMp} MP · free";
+            string qte = e.Difficulty == QteDifficulty.Normal
+                ? e.QteName
+                : $"{e.QteName} ({e.Difficulty})";
+            string afford = e.CanAfford ? string.Empty : "  <color=#E06666>need MP</color>";
+
+            abilityText.text =
+                $"{e.AbilityName}  <size=75%>({e.Index + 1}/{e.Count})  [C] cycle</size>\n" +
+                $"<size=78%>{mp}  ·  {qte}</size>{afford}";
+        }
+
         private void OnCombatEnded(Faction winner)
         {
             if (outcomeText != null)
@@ -169,6 +211,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (endTurnHintText != null)
             {
                 endTurnHintText.text = string.Empty;
+            }
+
+            if (abilityText != null)
+            {
+                abilityText.text = string.Empty;
             }
         }
 
@@ -199,6 +246,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (endTurnHintText != null)
             {
                 endTurnHintText.text = "Tab: End Turn";
+            }
+
+            if (abilityText != null)
+            {
+                abilityText.text = string.Empty;
             }
         }
 
@@ -242,6 +294,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             endTurnHintText.alignment = TextAlignmentOptions.BottomRight;
             endTurnHintText.fontSize = 18;
             endTurnHintText.color = new Color(0.85f, 0.85f, 0.85f, 0.85f);
+
+            // Ability selector line, just under the squad roster. Shows the
+            // active player unit's chosen ability + MP + QTE; empty otherwise.
+            abilityText = CreateText(canvas.transform, "AbilityText", new Vector2(0.02f, 0.83f), new Vector2(0.5f, 0.915f), string.Empty);
+            abilityText.fontSize = 20;
 
             // Damage forecast lives in the top-right, below the turn-order
             // strip that sits at the very top (built by TurnOrderPresenter).

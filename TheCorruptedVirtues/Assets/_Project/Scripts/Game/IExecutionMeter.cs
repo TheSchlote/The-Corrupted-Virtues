@@ -22,8 +22,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // timing check they're about to do — direct M1 playtest ask.
         string DisplayName { get; }
 
-        // Start the challenge: show it and begin the timed input.
-        void Begin();
+        // Start the challenge: show it and begin the timed input. The
+        // difficulty lets a meter scale its grading per ability (the swing
+        // meter narrows its Divine window; button mash raises its target).
+        void Begin(QteDifficulty difficulty);
 
         // Stop and grade the current input. Returns the discrete tier and
         // outputs the damage multiplier plus the raw [0,1] input value.

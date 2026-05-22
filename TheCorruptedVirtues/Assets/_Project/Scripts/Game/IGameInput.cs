@@ -12,6 +12,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         bool ResetPressed { get; }
         bool EndTurnPressed { get; }
 
+        // Edge-triggered: cycle the active unit's selected ability (M2 slice 2).
+        bool CycleAbilityPressed { get; }
+
         // Held grid-navigation intent; each axis is -1, 0, or 1.
         Vector2Int MoveAxis { get; }
 

@@ -14,6 +14,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private GameObject meterRoot;
         [SerializeField] private Slider executionSlider;
         [SerializeField] private TMP_Text statusText;
+        [SerializeField] private RectTransform hitZone;
+        [SerializeField] private RectTransform divineZone;
+        [SerializeField] private RectTransform overshootZone;
 
         [Header("Timing")]
         // 1.0s cycle keeps the Divine zone visible for ~150ms, which is at
@@ -27,7 +30,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private string promptText = "Press Confirm to stop the swing meter.";
         [SerializeField] private string resultFormat = "Timing: {0} (x{1:0.00})";
 
-        private readonly ExecutionCalculator executionCalculator = new ExecutionCalculator();
+        // Set per Begin from the ability's QteDifficulty so the Divine window
+        // (and the painted zones) tighten for stronger abilities.
+        private ExecutionCalculator executionCalculator = new ExecutionCalculator();
         private Coroutine meterLoop;
         private Coroutine pulseLoop;
         private Coroutine hideLoop;
@@ -45,20 +50,32 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             TryInitialize();
         }
 
-        public void SetReferences(GameObject root, Slider slider, TMP_Text text)
+        public void SetReferences(
+            GameObject root,
+            Slider slider,
+            TMP_Text text,
+            RectTransform hit,
+            RectTransform divine,
+            RectTransform overshoot)
         {
             meterRoot = root;
             executionSlider = slider;
             statusText = text;
+            hitZone = hit;
+            divineZone = divine;
+            overshootZone = overshoot;
             TryInitialize();
         }
 
-        public void Begin()
+        public void Begin(QteDifficulty difficulty)
         {
             if (!EnsureReady())
             {
                 return;
             }
+
+            executionCalculator = new ExecutionCalculator(difficulty);
+            ApplyZoneLayout();
 
             StopHideLoop();
             StopMeterLoop();
@@ -107,6 +124,32 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             StopMeterLoop();
             StopPulse();
             HideImmediate();
+        }
+
+        // Resize the difficulty-dependent zones so the painted bands always
+        // match the grader's window for the current ability. Fumble/Miss are
+        // fixed; Hit fills up to Divine, the overshoot zone fills above it.
+        private void ApplyZoneLayout()
+        {
+            SetZoneRange(hitZone, ExecutionCalculator.HitMin, executionCalculator.DivineMin);
+            SetZoneRange(divineZone, executionCalculator.DivineMin, executionCalculator.DivineMax);
+            SetZoneRange(overshootZone, executionCalculator.DivineMax, 1.0f);
+        }
+
+        private static void SetZoneRange(RectTransform zone, float minX, float maxX)
+        {
+            if (zone == null)
+            {
+                return;
+            }
+
+            Vector2 min = zone.anchorMin;
+            min.x = minX;
+            zone.anchorMin = min;
+
+            Vector2 max = zone.anchorMax;
+            max.x = maxX;
+            zone.anchorMax = max;
         }
 
         private void TryInitialize()
