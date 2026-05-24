@@ -815,9 +815,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             SituationalModifiers mods = CombatSituation.For(attacker, target, elevation);
 
-            // Auto-facing: the attacker turns to face whoever it strikes. Kept
-            // out of the flank math above, which reads the *target's* facing.
-            if (ability.Kind != AbilityKind.Support)
+            // Single-target attacks are directional: the attacker turns to face
+            // its target and strikes the faced tile (movement sets facing
+            // otherwise; there is no standalone turn action). Support heals and
+            // AoE attacks don't turn to a single target. Kept out of the flank
+            // math above, which reads the *target's* facing.
+            if (ability.Kind != AbilityKind.Support && !ability.IsAreaOfEffect)
             {
                 attacker.Facing = FacingRules.Toward(attacker.Coord, target.Coord);
                 events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(attacker.Id, attacker.Facing));

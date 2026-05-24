@@ -15,6 +15,10 @@ namespace TheCorruptedVirtues.Combat
         public int MpCost { get; }
         public QteType QteType { get; }
         public QteDifficulty QteDifficulty { get; }
+        // Single-target attacks are directional: the attacker turns to face its
+        // target and strikes the faced tile. AoE attacks bypass that (they hit
+        // an area, not one faced target). Default false = single-target.
+        public bool IsAreaOfEffect { get; }
 
         // Basic-attack shorthand: free, swing meter, normal difficulty. Keeps
         // the M1.5 call sites and characterization tests unchanged.
@@ -31,7 +35,8 @@ namespace TheCorruptedVirtues.Combat
             float scaling,
             int mpCost,
             QteType qteType,
-            QteDifficulty qteDifficulty)
+            QteDifficulty qteDifficulty,
+            bool isAreaOfEffect = false)
         {
             Name = name;
             Kind = kind;
@@ -41,6 +46,7 @@ namespace TheCorruptedVirtues.Combat
             MpCost = mpCost;
             QteType = qteType;
             QteDifficulty = qteDifficulty;
+            IsAreaOfEffect = isAreaOfEffect;
         }
     }
 }
