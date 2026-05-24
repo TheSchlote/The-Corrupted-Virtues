@@ -47,7 +47,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             for (int i = 0; i < units.Count; i++)
             {
                 CombatUnit u = units[i];
-                if (u.IsAlive && u.Coord == coord)
+                if (u.IsAlive && u.Footprint.Covers(u.Coord, coord))
                 {
                     return u;
                 }
@@ -62,7 +62,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             {
                 if (units[i].IsAlive)
                 {
-                    occupancy.Add(units[i].Coord);
+                    occupancy.AddFootprint(units[i].Footprint, units[i].Coord);
                 }
             }
         }

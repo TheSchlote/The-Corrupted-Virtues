@@ -20,6 +20,10 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public GridCoord SpawnCoord;
         public Facing Facing;
         public Facing SpawnFacing;
+        // Tiles occupied, anchored at Coord. 1x1 for normal units; the 2x2
+        // Great Beast bosses set this larger. Defaults to Single so existing
+        // single-tile units need no change.
+        public GridFootprint Footprint = GridFootprint.Single;
         public int Hp;
         public int Mp;
         public CombatStats Stats;

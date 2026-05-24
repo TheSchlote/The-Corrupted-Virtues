@@ -122,6 +122,29 @@ namespace TheCorruptedVirtues.Tests
             Assert.That(footprint.Width, Is.EqualTo(1));
             Assert.That(footprint.Height, Is.EqualTo(1));
         }
+
+        [Test]
+        public void Covers_TrueInsideFootprint_FalseOutside()
+        {
+            var beast = new GridFootprint(2, 2);
+            var anchor = new GridCoord(3, 3);
+
+            Assert.That(beast.Covers(anchor, new GridCoord(3, 3)), Is.True);
+            Assert.That(beast.Covers(anchor, new GridCoord(4, 3)), Is.True);
+            Assert.That(beast.Covers(anchor, new GridCoord(3, 4)), Is.True);
+            Assert.That(beast.Covers(anchor, new GridCoord(4, 4)), Is.True);
+
+            Assert.That(beast.Covers(anchor, new GridCoord(2, 3)), Is.False);
+            Assert.That(beast.Covers(anchor, new GridCoord(5, 5)), Is.False);
+        }
+
+        [Test]
+        public void Single_Covers_AnchorOnly()
+        {
+            var anchor = new GridCoord(7, 2);
+            Assert.That(GridFootprint.Single.Covers(anchor, anchor), Is.True);
+            Assert.That(GridFootprint.Single.Covers(anchor, new GridCoord(8, 2)), Is.False);
+        }
     }
 
     public class GridMathTests

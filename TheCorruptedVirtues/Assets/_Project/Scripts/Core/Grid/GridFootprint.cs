@@ -32,5 +32,17 @@ namespace TheCorruptedVirtues.CombatSlice.Core
                 }
             }
         }
+
+        // True if 'cell' falls inside this footprint anchored at 'anchor'. O(1)
+        // and allocation-free (unlike scanning Cells). Treats sub-1 dimensions
+        // as 1, matching the constructor's clamp, so default(GridFootprint) acts
+        // as 1x1 rather than covering nothing.
+        public bool Covers(GridCoord anchor, GridCoord cell)
+        {
+            int w = Width < 1 ? 1 : Width;
+            int h = Height < 1 ? 1 : Height;
+            return cell.X >= anchor.X && cell.X < anchor.X + w
+                && cell.Y >= anchor.Y && cell.Y < anchor.Y + h;
+        }
     }
 }

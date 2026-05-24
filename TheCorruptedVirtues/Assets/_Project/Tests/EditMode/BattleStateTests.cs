@@ -126,5 +126,31 @@ namespace TheCorruptedVirtues.Tests
             Assert.That(state.TryGetWinner(Faction.Enemy, out Faction winner), Is.True);
             Assert.That(winner, Is.EqualTo(Faction.Enemy));
         }
+
+        [Test]
+        public void GetLivingUnitAt_MultiTileUnit_FoundOnEveryCoveredCell()
+        {
+            CombatUnit beast = BattleTestFactory.Unit(1, Faction.Enemy, new GridCoord(2, 2));
+            beast.Footprint = new GridFootprint(2, 2);
+            BattleState state = StateWith(beast);
+
+            Assert.That(state.GetLivingUnitAt(new GridCoord(2, 2)), Is.SameAs(beast));
+            Assert.That(state.GetLivingUnitAt(new GridCoord(3, 2)), Is.SameAs(beast));
+            Assert.That(state.GetLivingUnitAt(new GridCoord(2, 3)), Is.SameAs(beast));
+            Assert.That(state.GetLivingUnitAt(new GridCoord(3, 3)), Is.SameAs(beast));
+            Assert.That(state.GetLivingUnitAt(new GridCoord(4, 4)), Is.Null);
+        }
+
+        [Test]
+        public void RebuildOccupancy_MultiTileUnit_OccupiesEveryCoveredCell()
+        {
+            CombatUnit beast = BattleTestFactory.Unit(1, Faction.Enemy, new GridCoord(2, 2));
+            beast.Footprint = new GridFootprint(2, 2);
+            BattleState state = StateWith(beast);
+
+            Assert.That(state.Occupancy.IsOccupied(new GridCoord(2, 2)), Is.True);
+            Assert.That(state.Occupancy.IsOccupied(new GridCoord(3, 3)), Is.True);
+            Assert.That(state.Occupancy.IsOccupied(new GridCoord(2, 4)), Is.False);
+        }
     }
 }
