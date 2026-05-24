@@ -39,6 +39,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             BuildHpBar();
             BuildActiveIndicator();
             BuildFacingArrow();
+            if (isGreatBeast)
+            {
+                BuildEvilAura();
+            }
         }
 
         public void Warp(Vector3 world)
@@ -315,6 +319,71 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             tickRenderer.material = ViewMaterials.CreateColored(tint);
             tickRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             tickRenderer.receiveShadows = false;
+        }
+
+        // Purple corruption aura for the Great Beast — a code-built particle
+        // system of violet motes drifting up off the body. Placeholder VFX, like
+        // everything else here, but it reads as "this thing is radiating evil".
+        private void BuildEvilAura()
+        {
+            GameObject auraObject = new GameObject("EvilAura");
+            auraObject.transform.SetParent(transform, false);
+            auraObject.transform.localPosition = Vector3.zero;
+
+            ParticleSystem ps = auraObject.AddComponent<ParticleSystem>();
+
+            ParticleSystem.MainModule main = ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            main.startLifetime = 1.6f;
+            main.startSpeed = 0.35f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.30f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.62f, 0.24f, 0.85f, 0.85f));
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            main.maxParticles = 80;
+
+            ParticleSystem.EmissionModule emission = ps.emission;
+            emission.rateOverTime = 24f;
+
+            ParticleSystem.ShapeModule shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.55f;
+
+            ParticleSystem.VelocityOverLifetimeModule velocity = ps.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.space = ParticleSystemSimulationSpace.Local;
+            velocity.y = new ParticleSystem.MinMaxCurve(0.6f);
+
+            ParticleSystem.ColorOverLifetimeModule colorOverLifetime = ps.colorOverLifetime;
+            colorOverLifetime.enabled = true;
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.55f, 0.18f, 0.82f), 0f),
+                    new GradientColorKey(new Color(0.28f, 0.05f, 0.45f), 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(0.85f, 0.25f),
+                    new GradientAlphaKey(0f, 1f),
+                });
+            colorOverLifetime.color = new ParticleSystem.MinMaxGradient(gradient);
+
+            ParticleSystemRenderer psRenderer = auraObject.GetComponent<ParticleSystemRenderer>();
+            Shader particleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (particleShader == null)
+            {
+                particleShader = Shader.Find("Sprites/Default");
+            }
+
+            psRenderer.material = new Material(particleShader);
+            psRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psRenderer.receiveShadows = false;
+
+            ps.Play();
         }
 
         private Transform CreateBarQuad(string objectName, Transform parent, float width, Color color, float localOffsetZ)
