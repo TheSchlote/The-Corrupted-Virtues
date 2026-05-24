@@ -240,6 +240,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public readonly string AttackName;
         public readonly string QteName;
         public readonly bool IsHeal;
+        // 1.0 = none; >1 means the attacker has the high-ground bonus. Surfaced
+        // so the forecast can explain why the number moved (determinism pillar).
+        public readonly float HighGroundMultiplier;
 
         public DamageEstimateEvent(
             UnitId targetId,
@@ -250,7 +253,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             float elementMultiplier,
             string attackName,
             string qteName,
-            bool isHeal = false)
+            bool isHeal = false,
+            float highGroundMultiplier = 1.0f)
         {
             HasEstimate = true;
             TargetId = targetId;
@@ -262,6 +266,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             AttackName = attackName;
             QteName = qteName;
             IsHeal = isHeal;
+            HighGroundMultiplier = highGroundMultiplier;
         }
 
         public static DamageEstimateEvent Cleared => default;

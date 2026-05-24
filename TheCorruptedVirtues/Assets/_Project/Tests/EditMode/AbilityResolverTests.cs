@@ -76,5 +76,20 @@ namespace TheCorruptedVirtues.Tests
             Assert.That(outcome.TargetHp, Is.EqualTo(10 + outcome.Amount));
             Assert.That(target.Hp, Is.EqualTo(outcome.TargetHp));
         }
+
+        [Test]
+        public void Damage_HighGround_DealsMoreThanLevelGround()
+        {
+            CombatUnit attacker = Attacker();
+            CombatUnit groundTarget = BattleTestFactory.Unit(2, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+            CombatUnit highTarget = BattleTestFactory.Unit(3, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+
+            AbilityOutcome onLevel = AbilityResolver.Resolve(
+                attacker, groundTarget, attacker.BasicAttack, ExecutionResult.Hit, SituationalModifiers.None);
+            AbilityOutcome fromHigh = AbilityResolver.Resolve(
+                attacker, highTarget, attacker.BasicAttack, ExecutionResult.Hit, SituationalModifiers.FromHighGround(1.25f));
+
+            Assert.That(fromHigh.Amount, Is.GreaterThan(onLevel.Amount));
+        }
     }
 }

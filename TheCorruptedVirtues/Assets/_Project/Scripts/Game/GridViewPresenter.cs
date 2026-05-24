@@ -12,6 +12,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private static readonly Color ValidColor = new Color(0.4f, 0.9f, 0.4f);
         private static readonly Color AttackColor = new Color(0.95f, 0.75f, 0.3f);
         private static readonly Color InvalidColor = new Color(0.9f, 0.35f, 0.35f);
+        private static readonly Color HighGroundColor = new Color(0.30f, 0.34f, 0.40f);
 
         private CombatEvents events;
         private GridPresenter grid;
@@ -65,6 +66,54 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (r != null)
             {
                 r.material = ViewMaterials.CreateColored(new Color(0.18f, 0.2f, 0.24f));
+            }
+
+            BuildElevation(e.Bounds);
+        }
+
+        // Raised blocks for elevated tiles: one cube per high tile spanning
+        // from the base ground up to the tile surface (units stand on its top).
+        // The ground stays a single flat plane; these are purely additive.
+        private void BuildElevation(GridBounds bounds)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            for (int x = 0; x < bounds.Width; x++)
+            {
+                for (int y = 0; y < bounds.Height; y++)
+                {
+                    GridCoord coord = new GridCoord(x, y);
+                    float blockHeight = grid.WorldHeightAt(coord);
+                    if (blockHeight <= 0f)
+                    {
+                        continue;
+                    }
+
+                    GameObject block = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    block.name = $"HighGround_{x}_{y}";
+                    block.transform.SetParent(transform, false);
+
+                    Vector3 surface = grid.GridToWorld(coord);
+                    block.transform.localScale = new Vector3(grid.CellSize, blockHeight, grid.CellSize);
+                    block.transform.position = new Vector3(surface.x, surface.y - blockHeight * 0.5f, surface.z);
+
+                    // Decorative only — keep cursor/mouse raycasts hitting the
+                    // flat ground plane rather than these blocks.
+                    Collider blockCollider = block.GetComponent<Collider>();
+                    if (blockCollider != null)
+                    {
+                        Destroy(blockCollider);
+                    }
+
+                    Renderer blockRenderer = block.GetComponent<Renderer>();
+                    if (blockRenderer != null)
+                    {
+                        blockRenderer.material = ViewMaterials.CreateColored(HighGroundColor);
+                    }
+                }
             }
         }
 

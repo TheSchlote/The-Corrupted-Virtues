@@ -13,6 +13,20 @@ namespace TheCorruptedVirtues.Combat
             AbilitySpec ability,
             ExecutionResult executionResult)
         {
+            return ComputeDamage(
+                attacker, attackerElement, defender, defenderElement,
+                ability, executionResult, SituationalModifiers.None);
+        }
+
+        public static DamageBreakdown ComputeDamage(
+            CombatStats attacker,
+            ElementType attackerElement,
+            CombatStats defender,
+            ElementType defenderElement,
+            AbilitySpec ability,
+            ExecutionResult executionResult,
+            SituationalModifiers situational)
+        {
             float elementMultiplier = ElementChart.GetMultiplier(ability.Element, defenderElement);
             float executionMultiplier = ExecutionModifiers.GetDamageMultiplier(executionResult);
             _ = attackerElement;
@@ -24,7 +38,8 @@ namespace TheCorruptedVirtues.Combat
                     elementMultiplier,
                     executionMultiplier,
                     1.0f,
-                    0.0f);
+                    0.0f,
+                    situational);
             }
 
             int attackStat = ability.Kind == AbilityKind.Physical ? attacker.Attack : attacker.SpecialAttack;
@@ -34,7 +49,7 @@ namespace TheCorruptedVirtues.Combat
             float mitigationFactor = 100.0f / (100.0f + defenseStat);
             float mitigatedDamage = preMitigationDamage * mitigationFactor;
 
-            float finalDamageFloat = mitigatedDamage * elementMultiplier * executionMultiplier;
+            float finalDamageFloat = mitigatedDamage * elementMultiplier * executionMultiplier * situational.Product;
             int finalDamage = Math.Max(0, (int)Math.Round(finalDamageFloat, MidpointRounding.AwayFromZero));
 
             return new DamageBreakdown(
@@ -42,7 +57,8 @@ namespace TheCorruptedVirtues.Combat
                 elementMultiplier,
                 executionMultiplier,
                 mitigationFactor,
-                preMitigationDamage);
+                preMitigationDamage,
+                situational);
         }
     }
 }

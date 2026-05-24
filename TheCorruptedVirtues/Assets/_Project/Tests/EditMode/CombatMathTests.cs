@@ -151,5 +151,36 @@ namespace TheCorruptedVirtues.Tests
             Assert.That(r.PreMitigationDamage, Is.EqualTo(0f).Within(1e-4f));
             Assert.That(r.MitigationFactor, Is.EqualTo(1.0f).Within(1e-4f));
         }
+
+        [Test]
+        public void HighGroundSituational_ScalesFinalDamage()
+        {
+            var ability = new AbilitySpec("Strike", AbilityKind.Physical, ElementType.Fire, 20, 1.0f);
+
+            // Neutral hit is 35 (see PhysicalHit test); ×1.25 high ground =
+            // 43.75 -> 44 (round away from zero).
+            var r = DamageCalculator.ComputeDamage(
+                Attacker(), ElementType.Fire, Defender(), ElementType.Fire, ability, ExecutionResult.Hit,
+                SituationalModifiers.FromHighGround(1.25f));
+
+            Assert.That(r.Situational.HighGround, Is.EqualTo(1.25f).Within(1e-4f));
+            Assert.That(r.FinalDamage, Is.EqualTo(44));
+        }
+
+        [Test]
+        public void NoSituational_MatchesExplicitNone()
+        {
+            var ability = new AbilitySpec("Strike", AbilityKind.Physical, ElementType.Fire, 20, 1.0f);
+
+            var implicitNone = DamageCalculator.ComputeDamage(
+                Attacker(), ElementType.Fire, Defender(), ElementType.Fire, ability, ExecutionResult.Hit);
+            var explicitNone = DamageCalculator.ComputeDamage(
+                Attacker(), ElementType.Fire, Defender(), ElementType.Fire, ability, ExecutionResult.Hit,
+                SituationalModifiers.None);
+
+            Assert.That(implicitNone.FinalDamage, Is.EqualTo(explicitNone.FinalDamage));
+            Assert.That(implicitNone.FinalDamage, Is.EqualTo(35));
+            Assert.That(explicitNone.Situational.Product, Is.EqualTo(1.0f).Within(1e-4f));
+        }
     }
 }

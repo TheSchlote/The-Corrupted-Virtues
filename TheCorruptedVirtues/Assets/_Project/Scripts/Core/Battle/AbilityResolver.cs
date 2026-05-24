@@ -40,6 +40,13 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public static AbilityOutcome Resolve(
             CombatUnit attacker, CombatUnit target, AbilitySpec ability, ExecutionResult execution)
         {
+            return Resolve(attacker, target, ability, execution, SituationalModifiers.None);
+        }
+
+        public static AbilityOutcome Resolve(
+            CombatUnit attacker, CombatUnit target, AbilitySpec ability, ExecutionResult execution,
+            SituationalModifiers situational)
+        {
             if (ability.Kind == AbilityKind.Support)
             {
                 HealBreakdown heal = HealCalculator.ComputeHeal(attacker.Stats, ability, execution);
@@ -58,7 +65,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             DamageBreakdown bd = DamageCalculator.ComputeDamage(
                 attacker.Stats, attacker.Element,
                 target.Stats, target.Element,
-                ability, execution);
+                ability, execution, situational);
 
             int damage = bd.FinalDamage;
             target.Hp = Math.Max(0, target.Hp - damage);

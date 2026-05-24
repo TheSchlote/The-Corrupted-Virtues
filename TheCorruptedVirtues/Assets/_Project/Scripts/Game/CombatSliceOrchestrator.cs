@@ -32,6 +32,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private CombatEvents events;
         private GridPresenter grid;
+        private ElevationMap elevation;
         private TacticalCursorController cursor;
         private readonly Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>();
         private IExecutionMeter currentMeter;
@@ -77,6 +78,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             turns = new TurnSystem(battle);
 
             BuildSquads();
+            BuildTerrain();
 
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
 
@@ -138,6 +140,26 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }));
 
             battle.SetRoster(roster);
+        }
+
+        // M2 terrain slice: a small high-ground plateau in the contested mid-
+        // field. Both squads start equidistant from it, so taking the high
+        // ground is a real opening choice. Level 1 = one step up (a ×1.25 hit
+        // against a lower target). Hardcoded like the roster; data-driven later.
+        private void BuildTerrain()
+        {
+            elevation = new ElevationMap();
+            GridCoord[] plateau =
+            {
+                new GridCoord(3, 3), new GridCoord(4, 3),
+                new GridCoord(3, 4), new GridCoord(4, 4),
+            };
+            for (int i = 0; i < plateau.Length; i++)
+            {
+                elevation.SetLevel(plateau[i], 1);
+            }
+
+            grid.SetElevation(elevation);
         }
 
         private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, List<AbilitySpec> abilities)
@@ -497,15 +519,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            SituationalModifiers mods = ElevationRules.ModifiersFor(activeUnit.Coord, targetUnit.Coord, elevation);
+
             DamageBreakdown hit = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
                 targetUnit.Stats, targetUnit.Element,
-                ability, ExecutionResult.Hit);
+                ability, ExecutionResult.Hit, mods);
 
             DamageBreakdown divine = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
                 targetUnit.Stats, targetUnit.Element,
-                ability, ExecutionResult.Divine);
+                ability, ExecutionResult.Divine, mods);
 
             events.RaiseDamageEstimateChanged(new DamageEstimateEvent(
                 targetUnit.Id,
@@ -515,7 +539,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 targetUnit.Element,
                 hit.ElementMultiplier,
                 ability.Name,
-                qteName));
+                qteName,
+                highGroundMultiplier: mods.HighGround));
         }
 
         private void HandleConfirm()
@@ -721,7 +746,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            AbilityOutcome outcome = AbilityResolver.Resolve(attacker, target, ability, execution);
+            SituationalModifiers mods = ElevationRules.ModifiersFor(attacker.Coord, target.Coord, elevation);
+            AbilityOutcome outcome = AbilityResolver.Resolve(attacker, target, ability, execution, mods);
 
             if (outcome.IsHeal)
             {
