@@ -24,6 +24,9 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         // Great Beast bosses set this larger. Defaults to Single so existing
         // single-tile units need no change.
         public GridFootprint Footprint = GridFootprint.Single;
+        // The corrupted-Virtue boss: a multi-tile unit whose HP pool reads as a
+        // Corruption gauge and whose defeat is a "purify", not a kill.
+        public bool IsGreatBeast;
         public int Hp;
         public int Mp;
         public CombatStats Stats;

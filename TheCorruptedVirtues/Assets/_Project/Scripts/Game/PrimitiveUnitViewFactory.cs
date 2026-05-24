@@ -1,6 +1,7 @@
 using UnityEngine;
 using TheCorruptedVirtues.Combat;
 using TheCorruptedVirtues.CombatSlice.Battle;
+using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -18,7 +19,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             this.parent = parent;
         }
 
-        public IUnitView CreateUnit(Faction faction, ElementType element)
+        public IUnitView CreateUnit(Faction faction, ElementType element, GridFootprint footprint, bool isGreatBeast)
         {
             PrimitiveType shape = faction == Faction.Player
                 ? PrimitiveType.Capsule
@@ -26,17 +27,28 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Color color = ColorForElement(element);
 
             GameObject go = GameObject.CreatePrimitive(shape);
-            go.name = faction == Faction.Player ? "PlayerUnitView" : "EnemyUnitView";
+            go.name = isGreatBeast
+                ? "GreatBeastView"
+                : (faction == Faction.Player ? "PlayerUnitView" : "EnemyUnitView");
             if (parent != null)
             {
                 go.transform.SetParent(parent, false);
+            }
+
+            // Multi-tile units fill their footprint (small gap keeps the cell
+            // grid legible underneath). 1x1 units keep the default unit scale.
+            int span = footprint.Width > footprint.Height ? footprint.Width : footprint.Height;
+            if (span > 1)
+            {
+                float scale = span - 0.1f;
+                go.transform.localScale = new Vector3(scale, scale, scale);
             }
 
             Renderer renderer = go.GetComponent<Renderer>();
             renderer.material = ViewMaterials.CreateColored(color);
 
             PrimitiveUnitView view = go.AddComponent<PrimitiveUnitView>();
-            view.Configure(renderer, color);
+            view.Configure(renderer, color, isGreatBeast);
             return view;
         }
 

@@ -28,11 +28,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private int cachedCurrentHp;
         private int cachedMaxHp;
+        private bool isGreatBeast;
 
-        public void Configure(Renderer renderer, Color color)
+        public void Configure(Renderer renderer, Color color, bool greatBeast = false)
         {
             primitiveRenderer = renderer;
             baseColor = color;
+            isGreatBeast = greatBeast;
             ViewMaterials.SetColor(primitiveRenderer, color);
             BuildHpBar();
             BuildActiveIndicator();
@@ -197,12 +199,16 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 color: new Color(0.08f, 0.08f, 0.08f, 1f),
                 localOffsetZ: 0f);
 
-            // Fill — green, sits in front of the background; scaled by UpdateHp.
+            // Fill — green HP for normal units; the Great Beast's pool reads as
+            // a violet Corruption gauge instead. Scaled by UpdateHp.
+            Color fillColor = isGreatBeast
+                ? new Color(0.66f, 0.30f, 0.85f, 1f)
+                : new Color(0.45f, 0.9f, 0.45f, 1f);
             hpBarFill = CreateBarQuad(
                 "HpBarFill",
                 hpBarRoot,
                 width: HpBarWidth,
-                color: new Color(0.45f, 0.9f, 0.45f, 1f),
+                color: fillColor,
                 localOffsetZ: -0.005f);
 
             // Damage preview — muted red, sits in front of the fill. Hidden by

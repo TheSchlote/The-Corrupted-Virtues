@@ -33,6 +33,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private CombatEvents events;
         private GridPresenter grid;
         private ElevationMap elevation;
+        // M2: this branch loads the Great Beast boss fight (2 players vs one 2x2
+        // boss) instead of the 2v2 squad fight. Flip to playtest the squads.
+        [SerializeField] private bool greatBeastEncounter = true;
         private TacticalCursorController cursor;
         private readonly Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>();
         private IExecutionMeter currentMeter;
@@ -77,7 +80,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             battle = new BattleState();
             turns = new TurnSystem(battle);
 
-            BuildSquads();
+            if (greatBeastEncounter)
+            {
+                BuildGreatBeastEncounter();
+            }
+            else
+            {
+                BuildSquads();
+            }
             BuildTerrain();
 
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
@@ -138,6 +148,50 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
             }));
+
+            battle.SetRoster(roster);
+        }
+
+        // M2 Great Beast slice: a boss fight - the same two player units versus
+        // one 2x2 corrupted Virtue. Its deep HP pool is the Corruption gauge;
+        // depleting it purifies (wins). Hardcoded like the squads; encounter
+        // data comes later. Stats/positions are first-pass, tunable in playtest.
+        private void BuildGreatBeastEncounter()
+        {
+            List<CombatUnit> roster = new List<CombatUnit>();
+
+            CombatStats lightFast = new CombatStats(
+                maxHP: 90, maxMP: 20, attack: 16, defense: 70,
+                specialAttack: 14, specialDefense: 70, speed: 14);
+            CombatStats fireSturdy = new CombatStats(
+                maxHP: 110, maxMP: 24, attack: 14, defense: 90,
+                specialAttack: 16, specialDefense: 90, speed: 8);
+
+            roster.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
+            {
+                new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
+                new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
+                new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
+            }));
+            roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
+            {
+                new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
+                new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
+            }));
+
+            // The corrupted Virtue: a slow, hard-hitting 2x2 with a deep
+            // Corruption pool (its HP). MakeUnit gives it West facing + the
+            // standard move range; footprint + boss flag set after.
+            CombatStats beastStats = new CombatStats(
+                maxHP: 400, maxMP: 0, attack: 22, defense: 80,
+                specialAttack: 10, specialDefense: 80, speed: 6);
+            CombatUnit beast = MakeUnit(3, Faction.Enemy, new GridCoord(5, 4), beastStats, ElementType.Dark, new List<AbilitySpec>
+            {
+                new AbilitySpec("Corruption Slam", AbilityKind.Physical, ElementType.Dark, power: 14, scaling: 1.0f),
+            });
+            beast.Footprint = new GridFootprint(2, 2);
+            beast.IsGreatBeast = true;
+            roster.Add(beast);
 
             battle.SetRoster(roster);
         }
@@ -274,7 +328,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.RaiseCombatReset();
             foreach (CombatUnit unit in battle.Units)
             {
-                events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp));
+                events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp, unit.Footprint, unit.IsGreatBeast));
                 events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(unit.Id, unit.Facing));
             }
 
@@ -574,9 +628,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (!hasAttackedThisTurn && affordable && targetUnit != null && targetUnit.IsAlive)
             {
                 int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
+                bool adjacent = FootprintAdjacency.AreAdjacent(
+                    activeUnit.Footprint, activeUnit.Coord, targetUnit.Footprint, targetUnit.Coord);
                 validTarget = isSupport
                     ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
-                    : (targetUnit.Faction != activeUnit.Faction && dist == 1);
+                    : (targetUnit.Faction != activeUnit.Faction && adjacent);
             }
 
             if (validTarget)
@@ -840,7 +896,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             hasMovedThisTurn = true;
 
             if (intendedTarget != null && intendedTarget.IsAlive
-                && GridMath.ManhattanDistance(activeUnit.Coord, intendedTarget.Coord) == 1)
+                && FootprintAdjacency.AreAdjacent(activeUnit.Footprint, activeUnit.Coord, intendedTarget.Footprint, intendedTarget.Coord))
             {
                 currentAttackTarget = intendedTarget;
                 ResolveEnemyAttackAndEnd();

@@ -1,5 +1,6 @@
 using TheCorruptedVirtues.Combat;
 using TheCorruptedVirtues.CombatSlice.Battle;
+using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -10,6 +11,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
     // colour for element.
     public interface IUnitViewFactory
     {
-        IUnitView CreateUnit(Faction faction, ElementType element);
+        IUnitView CreateUnit(Faction faction, ElementType element, GridFootprint footprint, bool isGreatBeast);
     }
 }

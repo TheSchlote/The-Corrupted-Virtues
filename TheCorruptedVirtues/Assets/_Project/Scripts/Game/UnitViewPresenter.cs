@@ -10,6 +10,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
     public sealed class UnitViewPresenter : MonoBehaviour
     {
         private readonly Dictionary<UnitId, IUnitView> views = new Dictionary<UnitId, IUnitView>();
+        private readonly Dictionary<UnitId, Vector3> centerOffsets = new Dictionary<UnitId, Vector3>();
         private CombatEvents events;
         private GridPresenter grid;
         private IUnitViewFactory factory;
@@ -55,26 +56,38 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void OnUnitSpawned(UnitSpawnedEvent e)
         {
+            Vector3 offset = CenterOffset(e.Footprint);
+            centerOffsets[e.Id] = offset;
+
             if (views.TryGetValue(e.Id, out IUnitView existing))
             {
                 existing.SetVisible(true);
-                existing.Warp(grid.GridToWorld(e.Coord, grid.UnitY));
+                existing.Warp(grid.GridToWorld(e.Coord, grid.UnitY) + offset);
                 existing.UpdateHp(e.Hp, e.MaxHp);
                 existing.ClearDamagePreview();
                 return;
             }
 
-            IUnitView view = factory.CreateUnit(e.Faction, e.Element);
-            view.Warp(grid.GridToWorld(e.Coord, grid.UnitY));
+            IUnitView view = factory.CreateUnit(e.Faction, e.Element, e.Footprint, e.IsGreatBeast);
+            view.Warp(grid.GridToWorld(e.Coord, grid.UnitY) + offset);
             view.UpdateHp(e.Hp, e.MaxHp);
             views[e.Id] = view;
+        }
+
+        // A multi-tile unit's view sits at the centre of its footprint, not the
+        // anchor (min) corner. 1x1 units get a zero offset, so nothing changes.
+        private Vector3 CenterOffset(GridFootprint footprint)
+        {
+            float cell = grid.CellSize;
+            return new Vector3((footprint.Width - 1) * 0.5f * cell, 0f, (footprint.Height - 1) * 0.5f * cell);
         }
 
         private void OnUnitMoved(UnitMovedEvent e)
         {
             if (views.TryGetValue(e.Id, out IUnitView view))
             {
-                view.MoveTo(grid.GridToWorld(e.Coord, grid.UnitY));
+                Vector3 offset = centerOffsets.TryGetValue(e.Id, out Vector3 stored) ? stored : Vector3.zero;
+                view.MoveTo(grid.GridToWorld(e.Coord, grid.UnitY) + offset);
             }
         }
 
@@ -172,6 +185,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             views.Clear();
+            centerOffsets.Clear();
             damagePreviewActive = false;
             hasActiveUnit = false;
         }
