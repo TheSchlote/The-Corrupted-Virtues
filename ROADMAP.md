@@ -155,6 +155,13 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] Pure-C# core (MP / QTE-difficulty / button-mash / heal calculators) with 19 EditMode tests pinning it (77 total, all green)
 - [x] Enemy AI uses its basic attack this slice (enemy ability/MP use deferred)
 
+**Slice 3 — God-controller decomposition** _(pay down debt before terrain/facing/boss pile on — all three touch turn + attack flow)_ ✅ _shipped on `feature/m2-decompose-orchestrator` (2026-05-22)_
+- [x] New pure-C# **`Battle` assembly** (refs `Combat` + `GridCore`) — the home for combat-on-a-grid logic that needs both base cores, so each base core stays an independent zero-dependency leaf
+- [x] `Faction` / `UnitId` relocated into it; `CombatUnit` lifted out of the orchestrator's private nested class into a shared pure model
+- [x] Logic split into focused, unit-tested pure systems: `BattleState` (roster / occupancy / win), `TurnSystem` (round queue + upcoming strip), `EnemyTurnPlanner` (AI heuristic → plan), `AbilityResolver` (damage/heal → outcome struct), `MovementRules` (reach)
+- [x] `CombatSliceOrchestrator` slimmed **1005 → ~815 lines**: now a Unity adapter (input, move/QTE coroutines, cursor, event-raising) that drives the systems — still announces everything through `CombatEvents`, behavior unchanged
+- [x] 32 new EditMode tests pinning the extracted logic (**109 total, all green**)
+
 - [x] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE) _(slice 2)_
 - [ ] **Pulled forward from M3:** grid elevation/terrain (high ground bonus). Identified in the M1 playtest as a fun-prerequisite — needed in M2 so positioning becomes a real choice.
 - [ ] **Facing / flanking:** unit facing + back/side attack modifiers; facing arrow indicator. (New from M1 playtest — direct Gladius ask.)
@@ -162,7 +169,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [ ] **Great Beast boss:** a 2×2 unit + **Corruption gauge** (purify-not-kill win condition)
 - [x] Additional QTE types — framework + **button mash** _(slice 2)_
 - [ ] More QTE types: timed press, matching _(later slice)_
-- [ ] Decompose god-controller → TurnSystem / AttackSystem / Hud (driven by need)
+- [x] Decompose god-controller → pure-C# `Battle` systems: `TurnSystem` + `AbilityResolver` (the "AttackSystem") + `BattleState`/`EnemyTurnPlanner`/`MovementRules`; HUD was already split into presenters _(slice 3)_
 - [ ] Digimon-Survive stat-semantics pass _(element matchup UI shipped in M1.5)_
 - [ ] → tag `v0.2.0`
 
