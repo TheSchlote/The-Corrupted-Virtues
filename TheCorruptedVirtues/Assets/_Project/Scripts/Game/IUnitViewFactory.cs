@@ -1,4 +1,5 @@
 using TheCorruptedVirtues.Combat;
+using TheCorruptedVirtues.CombatSlice.Battle;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {

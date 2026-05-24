@@ -1,4 +1,4 @@
-namespace TheCorruptedVirtues.CombatSlice.Unity
+namespace TheCorruptedVirtues.CombatSlice.Battle
 {
     public enum Faction
     {

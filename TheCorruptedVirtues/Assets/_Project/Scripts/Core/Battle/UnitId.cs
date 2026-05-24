@@ -1,4 +1,4 @@
-namespace TheCorruptedVirtues.CombatSlice.Unity
+namespace TheCorruptedVirtues.CombatSlice.Battle
 {
     // Opaque handle to a logical combat unit. Events carry this instead of a
     // GameObject/MonoBehaviour so logic never reaches into the view layer.

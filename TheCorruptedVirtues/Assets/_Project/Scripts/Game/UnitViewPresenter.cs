@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using TheCorruptedVirtues.CombatSlice.Battle;
 using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity

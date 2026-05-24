@@ -3,51 +3,32 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TheCorruptedVirtues.Combat;
+using TheCorruptedVirtues.CombatSlice.Battle;
 using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
-    // The combat loop's logic owner. It manipulates only logical state and
-    // announces what happened through CombatEvents — it never touches a
-    // GameObject, transform, renderer or UI element. Presenters do that.
+    // The combat loop's Unity-side conductor. It no longer owns the rules: the
+    // pure-C# Battle systems decide them — BattleState (roster / occupancy /
+    // win), TurnSystem (round order), EnemyTurnPlanner (AI), AbilityResolver
+    // (damage / heal), MovementRules (reach). This class drives input, runs the
+    // move and QTE coroutines, moves the cursor, and translates every state
+    // change into CombatEvents. As before, it never touches a GameObject,
+    // transform, renderer or UI element — presenters do that.
     //
-    // M2 slice 1: squads + Speed-based interleaved turn order. The single
-    // player/enemy fields are gone; the orchestrator now owns a list of all
-    // units, builds a per-round queue (highest Speed first, ties by lower
-    // Id), and walks one unit's turn at a time. Combat ends when either
-    // faction has no living units.
+    // M2: squads + Speed-based interleaved turn order; one unit acts per turn.
+    // Combat ends when either faction has no living units.
     public sealed class CombatSliceOrchestrator : MonoBehaviour
     {
-        private sealed class CombatUnit
-        {
-            public UnitId Id;
-            public Faction Faction;
-            public GridCoord Coord;
-            public GridCoord SpawnCoord;
-            public int Hp;
-            public int Mp;
-            public CombatStats Stats;
-            public ElementType Element;
-            public List<AbilitySpec> Abilities;
-            public int SelectedAbilityIndex;
-            public int MoveRange;
-
-            public int MaxHp => Stats.MaxHP;
-            public int MaxMp => Stats.MaxMP;
-            public bool IsAlive => Hp > 0;
-            public AbilitySpec BasicAttack => Abilities[0];
-            public AbilitySpec SelectedAbility => Abilities[SelectedAbilityIndex];
-        }
-
-        private readonly GridOccupancy occupancy = new GridOccupancy();
         private readonly List<GridCoord> currentPath = new List<GridCoord>();
         private readonly List<GridCoord> moveTrail = new List<GridCoord>();
         private readonly List<GridCoord> ghostPathBuffer = new List<GridCoord>();
-
-        private readonly List<CombatUnit> allUnits = new List<CombatUnit>();
-        private readonly Queue<CombatUnit> roundQueue = new Queue<CombatUnit>();
-        private readonly List<TurnOrderEntry> turnOrderEntriesBuffer = new List<TurnOrderEntry>();
         private readonly List<UnitId> upcomingBuffer = new List<UnitId>();
+
+        // Pure-C# combat state + turn queue. This MonoBehaviour mutates them
+        // and announces the results; it keeps no gameplay rules of its own.
+        private BattleState battle;
+        private TurnSystem turns;
 
         private CombatEvents events;
         private GridPresenter grid;
@@ -92,6 +73,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
             moveStepDelaySeconds = moveStepDelay;
 
+            battle = new BattleState();
+            turns = new TurnSystem(battle);
+
             BuildSquads();
 
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
@@ -109,7 +93,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // Spawn data stays hardcoded here; ScriptableObjects come later.
         private void BuildSquads()
         {
-            allUnits.Clear();
+            List<CombatUnit> roster = new List<CombatUnit>();
 
             CombatStats lightFast = new CombatStats(
                 maxHP: 90, maxMP: 20,
@@ -132,26 +116,28 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 specialAttack: 16, specialDefense: 90,
                 speed: 8);
 
-            allUnits.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
+            roster.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
             {
                 new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
                 new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
                 new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
             }));
-            allUnits.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
+            roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
             {
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
             }));
 
-            allUnits.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
+            roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
             {
                 new AbilitySpec("Corruption Strike", AbilityKind.Physical, ElementType.Dark, power: 10, scaling: 1.0f),
             }));
-            allUnits.Add(MakeUnit(4, Faction.Enemy, new GridCoord(6, 4), waterSturdy, ElementType.Water, new List<AbilitySpec>
+            roster.Add(MakeUnit(4, Faction.Enemy, new GridCoord(6, 4), waterSturdy, ElementType.Water, new List<AbilitySpec>
             {
                 new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
             }));
+
+            battle.SetRoster(roster);
         }
 
         private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, List<AbilitySpec> abilities)
@@ -247,85 +233,28 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 meter?.Cancel();
             }
 
-            foreach (CombatUnit unit in allUnits)
+            foreach (CombatUnit unit in battle.Units)
             {
                 unit.Coord = unit.SpawnCoord;
                 unit.Hp = unit.MaxHp;
                 unit.Mp = unit.MaxMp;
                 unit.SelectedAbilityIndex = 0;
             }
+            battle.RebuildOccupancy();
 
             events.RaiseCombatReset();
-            foreach (CombatUnit unit in allUnits)
+            foreach (CombatUnit unit in battle.Units)
             {
                 events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp));
             }
 
-            StartNewRound();
+            turns.Reset();
+            turns.StartNewRound();
             BeginUnitTurn();
         }
 
-        private void StartNewRound()
-        {
-            roundQueue.Clear();
-            turnOrderEntriesBuffer.Clear();
-            for (int i = 0; i < allUnits.Count; i++)
-            {
-                CombatUnit u = allUnits[i];
-                turnOrderEntriesBuffer.Add(new TurnOrderEntry(u.Id.Value, u.Stats.Speed, u.IsAlive));
-            }
-
-            List<int> order = TurnOrder.ComputeRound(turnOrderEntriesBuffer);
-            for (int i = 0; i < order.Count; i++)
-            {
-                CombatUnit unit = FindUnitById(order[i]);
-                if (unit != null)
-                {
-                    roundQueue.Enqueue(unit);
-                }
-            }
-        }
-
-        private CombatUnit FindUnitById(int id)
-        {
-            for (int i = 0; i < allUnits.Count; i++)
-            {
-                if (allUnits[i].Id.Value == id)
-                {
-                    return allUnits[i];
-                }
-            }
-            return null;
-        }
-
-        private CombatUnit GetUnitAt(GridCoord coord)
-        {
-            for (int i = 0; i < allUnits.Count; i++)
-            {
-                CombatUnit u = allUnits[i];
-                if (u.IsAlive && u.Coord == coord)
-                {
-                    return u;
-                }
-            }
-            return null;
-        }
-
-        private void UpdateOccupancy()
-        {
-            occupancy.Clear();
-            for (int i = 0; i < allUnits.Count; i++)
-            {
-                CombatUnit u = allUnits[i];
-                if (u.IsAlive)
-                {
-                    occupancy.Add(u.Coord);
-                }
-            }
-        }
-
-        // Per-unit turn lifecycle: pull the next living unit from the round
-        // queue (rebuilding if empty), then start its turn.
+        // Per-unit turn lifecycle: pull the next living unit from the turn
+        // system (it rebuilds the round when empty), then start its turn.
         private void BeginUnitTurn()
         {
             if (isCombatOver)
@@ -333,30 +262,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // Find next living unit; skip dead entries (they were alive when
-            // the round was built but died before their turn came up).
-            while (roundQueue.Count > 0 && !roundQueue.Peek().IsAlive)
+            activeUnit = turns.AdvanceToNextLivingUnit();
+            if (activeUnit == null)
             {
-                roundQueue.Dequeue();
+                // No living units of either faction — shouldn't normally
+                // happen since CheckWinCondition would have fired first.
+                return;
             }
 
-            if (roundQueue.Count == 0)
-            {
-                StartNewRound();
-                while (roundQueue.Count > 0 && !roundQueue.Peek().IsAlive)
-                {
-                    roundQueue.Dequeue();
-                }
-
-                if (roundQueue.Count == 0)
-                {
-                    // No living units of either faction — shouldn't normally
-                    // happen since CheckWinCondition would have fired first.
-                    return;
-                }
-            }
-
-            activeUnit = roundQueue.Dequeue();
             activeUnit.SelectedAbilityIndex = 0;
             hasMovedThisTurn = false;
             hasAttackedThisTurn = false;
@@ -391,43 +304,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void RaiseTurnOrderUpdate()
         {
-            upcomingBuffer.Clear();
-
-            // Active unit first.
-            if (activeUnit != null && activeUnit.IsAlive)
-            {
-                upcomingBuffer.Add(activeUnit.Id);
-            }
-
-            // Then the rest of the current round (living only).
-            foreach (CombatUnit u in roundQueue)
-            {
-                if (upcomingBuffer.Count >= UpcomingTurnsToShow) break;
-                if (u.IsAlive)
-                {
-                    upcomingBuffer.Add(u.Id);
-                }
-            }
-
-            // Fill remaining slots from the start of the *next* round so the
-            // strip doesn't shrink at the end of a round.
-            if (upcomingBuffer.Count < UpcomingTurnsToShow)
-            {
-                turnOrderEntriesBuffer.Clear();
-                for (int i = 0; i < allUnits.Count; i++)
-                {
-                    CombatUnit u = allUnits[i];
-                    turnOrderEntriesBuffer.Add(new TurnOrderEntry(u.Id.Value, u.Stats.Speed, u.IsAlive));
-                }
-                List<int> nextRound = TurnOrder.ComputeRound(turnOrderEntriesBuffer);
-                for (int i = 0; i < nextRound.Count; i++)
-                {
-                    if (upcomingBuffer.Count >= UpcomingTurnsToShow) break;
-                    CombatUnit u = FindUnitById(nextRound[i]);
-                    if (u != null) upcomingBuffer.Add(u.Id);
-                }
-            }
-
+            turns.BuildUpcoming(UpcomingTurnsToShow, upcomingBuffer);
             events.RaiseTurnOrderChanged(upcomingBuffer);
         }
 
@@ -484,17 +361,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            UpdateOccupancy();
+            battle.RebuildOccupancy();
             currentPath.Clear();
             List<GridCoord> path = GridPathfinderBfs.FindPath(
                 activeUnit.Coord,
                 cursor.CursorCoord,
-                occupancy,
+                battle.Occupancy,
                 grid.Bounds);
             currentPath.AddRange(path);
 
             int totalSteps = GridMath.StepCount(currentPath);
-            int reachableSteps = ComputeReachableSteps(currentPath);
+            int reachableSteps = ReachableSteps(currentPath);
 
             IReadOnlyList<GridCoord> renderedPath = currentPath;
             if (hasMovedThisTurn)
@@ -523,41 +400,30 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return ghostPathBuffer;
         }
 
-        private int ComputeReachableSteps(IReadOnlyList<GridCoord> path)
+        // The active unit's reachable step count along a path — MovementRules
+        // does the capping; this just supplies the unit's range / position.
+        private int ReachableSteps(IReadOnlyList<GridCoord> path)
         {
-            if (path == null || path.Count <= 1)
-            {
-                return 0;
-            }
-
-            int totalSteps = GridMath.StepCount(path);
-            int reachable = Mathf.Min(totalSteps, activeUnit.MoveRange);
-
-            GridCoord destination = path[path.Count - 1];
-            if (occupancy.IsOccupied(destination) && destination != activeUnit.Coord)
-            {
-                reachable = Mathf.Min(reachable, totalSteps - 1);
-            }
-
-            return Mathf.Max(0, reachable);
+            return MovementRules.ComputeReachableSteps(
+                path, activeUnit.MoveRange, battle.Occupancy, activeUnit.Coord);
         }
 
         private void RaiseSelection(GridCoord cursorCoord, int totalSteps, int reachableSteps)
         {
-            UpdateOccupancy();
+            battle.RebuildOccupancy();
 
             AbilitySpec ability = activeUnit.SelectedAbility;
             bool isSupport = ability.Kind == AbilityKind.Support;
             bool affordable = activeUnit.Mp >= ability.MpCost;
 
-            CombatUnit targetUnit = GetUnitAt(cursorCoord);
+            CombatUnit targetUnit = battle.GetLivingUnitAt(cursorCoord);
             // Support can target the caster's own tile (self-heal).
             if (isSupport && cursorCoord == activeUnit.Coord)
             {
                 targetUnit = activeUnit;
             }
 
-            bool occupiedByOther = occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
+            bool occupiedByOther = battle.Occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
             bool reachable = reachableSteps > 0 && !hasMovedThisTurn;
 
             bool wantsTarget = false;
@@ -664,7 +530,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             bool isSupport = ability.Kind == AbilityKind.Support;
             bool affordable = activeUnit.Mp >= ability.MpCost;
 
-            CombatUnit targetUnit = GetUnitAt(target);
+            CombatUnit targetUnit = battle.GetLivingUnitAt(target);
             if (isSupport && target == activeUnit.Coord)
             {
                 targetUnit = activeUnit;
@@ -692,13 +558,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            UpdateOccupancy();
+            battle.RebuildOccupancy();
             if (currentPath.Count <= 1)
             {
                 return;
             }
 
-            int reachableSteps = ComputeReachableSteps(currentPath);
+            int reachableSteps = ReachableSteps(currentPath);
             if (reachableSteps <= 0)
             {
                 return;
@@ -817,7 +683,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 activeUnit.Coord = path[i];
                 events.RaiseUnitMoved(new UnitMovedEvent(activeUnit.Id, activeUnit.Coord));
-                UpdateOccupancy();
+                battle.RebuildOccupancy();
                 yield return new WaitForSeconds(moveStepDelaySeconds);
             }
 
@@ -844,6 +710,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             UpdatePreview();
         }
 
+        // Apply an ability through the pure resolver, then announce the result.
+        // The HP math + lethality live in AbilityResolver; raising events and
+        // checking the win condition stay here (they touch CombatEvents and the
+        // combat-over flag).
         private void ResolveAbility(CombatUnit attacker, CombatUnit target, AbilitySpec ability, ExecutionResult execution)
         {
             if (attacker == null || target == null || ability == null)
@@ -851,58 +721,30 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            if (ability.Kind == AbilityKind.Support)
+            AbilityOutcome outcome = AbilityResolver.Resolve(attacker, target, ability, execution);
+
+            if (outcome.IsHeal)
             {
-                HealBreakdown heal = HealCalculator.ComputeHeal(attacker.Stats, ability, execution);
-                int before = target.Hp;
-                target.Hp = Mathf.Min(target.MaxHp, target.Hp + heal.FinalHeal);
-                int applied = target.Hp - before;
-                events.RaiseUnitHealed(new UnitHealedEvent(target.Id, applied, target.Hp, target.MaxHp));
+                events.RaiseUnitHealed(new UnitHealedEvent(outcome.TargetId, outcome.Amount, outcome.TargetHp, outcome.TargetMaxHp));
                 return;
             }
 
-            DamageBreakdown bd = DamageCalculator.ComputeDamage(
-                attacker.Stats, attacker.Element,
-                target.Stats, target.Element,
-                ability, execution);
+            events.RaiseUnitDamaged(new UnitDamagedEvent(outcome.TargetId, outcome.Amount, outcome.TargetHp, outcome.TargetMaxHp));
 
-            int damage = bd.FinalDamage;
-            target.Hp = Mathf.Max(0, target.Hp - damage);
-            events.RaiseUnitDamaged(new UnitDamagedEvent(target.Id, damage, target.Hp, target.MaxHp));
-
-            if (target.Hp <= 0)
+            if (outcome.TargetDied)
             {
-                events.RaiseUnitDied(target.Id);
+                events.RaiseUnitDied(outcome.TargetId);
                 CheckWinCondition(attacker.Faction);
             }
         }
 
         private void CheckWinCondition(Faction lastAttackerFaction)
         {
-            bool anyPlayerAlive = false;
-            bool anyEnemyAlive = false;
-            for (int i = 0; i < allUnits.Count; i++)
+            if (battle.TryGetWinner(lastAttackerFaction, out Faction winner))
             {
-                if (!allUnits[i].IsAlive) continue;
-                if (allUnits[i].Faction == Faction.Player) anyPlayerAlive = true;
-                else anyEnemyAlive = true;
+                isCombatOver = true;
+                events.RaiseCombatEnded(winner);
             }
-
-            if (anyPlayerAlive && anyEnemyAlive)
-            {
-                return;
-            }
-
-            isCombatOver = true;
-            // Winner = whichever faction still has units. Use the last
-            // attacker as a fallback if both sides simultaneously emptied
-            // (shouldn't happen with current rules but defensive).
-            Faction winner;
-            if (anyPlayerAlive) winner = Faction.Player;
-            else if (anyEnemyAlive) winner = Faction.Enemy;
-            else winner = lastAttackerFaction;
-
-            events.RaiseCombatEnded(winner);
         }
 
         // === Enemy AI (per-unit turn) ===
@@ -917,66 +759,34 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 yield break;
             }
 
-            // Find nearest living player unit (Manhattan distance).
-            CombatUnit nearestPlayer = FindNearestEnemy(activeUnit);
-            if (nearestPlayer == null)
+            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(activeUnit, battle, grid.Bounds);
+
+            if (plan.Target == null)
             {
                 EndUnitTurn();
                 yield break;
             }
 
-            int distance = GridMath.ManhattanDistance(activeUnit.Coord, nearestPlayer.Coord);
-            if (distance == 1)
+            // Already adjacent (or otherwise no move): attack in place or end.
+            if (!plan.HasMove)
             {
-                currentAttackTarget = nearestPlayer;
-                ResolveEnemyAttackAndEnd();
-                yield break;
-            }
-
-            UpdateOccupancy();
-            List<GridCoord> approachPath = GridPathfinderBfs.FindPath(
-                activeUnit.Coord,
-                nearestPlayer.Coord,
-                occupancy,
-                grid.Bounds);
-
-            int reachableSteps = ComputeReachableSteps(approachPath);
-            if (reachableSteps <= 0)
-            {
-                EndUnitTurn();
-                yield break;
-            }
-
-            int points = reachableSteps + 1;
-            List<GridCoord> moveSegment = new List<GridCoord>(points);
-            for (int i = 0; i < points; i++)
-            {
-                moveSegment.Add(approachPath[i]);
-            }
-
-            // Capture the target so OnEnemyMoveComplete knows who to attack
-            // if it's adjacent after the move.
-            CombatUnit intendedTarget = nearestPlayer;
-            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget));
-        }
-
-        private CombatUnit FindNearestEnemy(CombatUnit unit)
-        {
-            CombatUnit nearest = null;
-            int nearestDistance = int.MaxValue;
-            for (int i = 0; i < allUnits.Count; i++)
-            {
-                CombatUnit candidate = allUnits[i];
-                if (!candidate.IsAlive) continue;
-                if (candidate.Faction == unit.Faction) continue;
-                int d = GridMath.ManhattanDistance(unit.Coord, candidate.Coord);
-                if (d < nearestDistance)
+                if (plan.AttackAfterMove)
                 {
-                    nearestDistance = d;
-                    nearest = candidate;
+                    currentAttackTarget = plan.Target;
+                    ResolveEnemyAttackAndEnd();
                 }
+                else
+                {
+                    EndUnitTurn();
+                }
+                yield break;
             }
-            return nearest;
+
+            // Walk the planned segment; OnEnemyMoveComplete re-checks adjacency
+            // and attacks if the move landed next to the target.
+            CombatUnit intendedTarget = plan.Target;
+            List<GridCoord> moveSegment = new List<GridCoord>(plan.MovePath);
+            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget));
         }
 
         private void OnEnemyMoveComplete(CombatUnit intendedTarget)

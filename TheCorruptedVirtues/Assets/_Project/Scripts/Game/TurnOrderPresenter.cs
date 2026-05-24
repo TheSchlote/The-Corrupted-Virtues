@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using TheCorruptedVirtues.Combat;
+using TheCorruptedVirtues.CombatSlice.Battle;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {

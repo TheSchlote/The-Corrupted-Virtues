@@ -4,6 +4,7 @@
     "references": [
         "TheCorruptedVirtues.Combat",
         "TheCorruptedVirtues.GridCore",
+        "TheCorruptedVirtues.Battle",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
