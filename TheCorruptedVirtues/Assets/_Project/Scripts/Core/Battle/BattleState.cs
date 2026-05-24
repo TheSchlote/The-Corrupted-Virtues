@@ -67,6 +67,23 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             }
         }
 
+        // Occupancy of every OTHER living unit's footprint. Used for
+        // lift-and-place pathfinding so a multi-tile unit doesn't collide with
+        // the cells it is currently standing on.
+        public GridOccupancy BuildOccupancyExcluding(CombatUnit actor)
+        {
+            GridOccupancy result = new GridOccupancy();
+            for (int i = 0; i < units.Count; i++)
+            {
+                CombatUnit u = units[i];
+                if (u.IsAlive && !ReferenceEquals(u, actor))
+                {
+                    result.AddFootprint(u.Footprint, u.Coord);
+                }
+            }
+            return result;
+        }
+
         public bool AnyAlive(Faction faction)
         {
             for (int i = 0; i < units.Count; i++)

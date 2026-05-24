@@ -13,6 +13,11 @@ namespace TheCorruptedVirtues.CombatSlice.Core
         public readonly int Width;
         public readonly int Height;
 
+        // True for a 1x1 footprint — lets callers keep the simpler single-cell
+        // path for normal units and only branch into multi-tile logic for the
+        // bosses that actually need it.
+        public bool IsSingle => Width <= 1 && Height <= 1;
+
         // Dimensions below 1 are clamped to 1 (matches the clamping
         // convention used elsewhere in the core, e.g. ExecutionCalculator).
         public GridFootprint(int width, int height)

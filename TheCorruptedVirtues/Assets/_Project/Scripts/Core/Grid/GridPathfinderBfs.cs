@@ -68,6 +68,58 @@ namespace TheCorruptedVirtues.CombatSlice.Core
             return new List<GridCoord>();
         }
 
+        // Footprint-aware BFS: the anchor path from 'start' to the nearest
+        // placeable anchor whose footprint is orthogonally adjacent to
+        // 'targetCell' (without overlapping it). 'blocked' must EXCLUDE the
+        // moving unit's own footprint (lift-and-place). Empty if unreachable.
+        public static List<GridCoord> FindFootprintApproach(
+            GridCoord start,
+            GridFootprint footprint,
+            GridCoord targetCell,
+            GridOccupancy blocked,
+            GridBounds bounds)
+        {
+            GridOccupancy occ = blocked ?? new GridOccupancy();
+
+            if (FootprintAdjacency.AreAdjacent(footprint, start, GridFootprint.Single, targetCell))
+            {
+                return new List<GridCoord> { start };
+            }
+
+            Queue<GridCoord> queue = new Queue<GridCoord>();
+            Dictionary<GridCoord, GridCoord> cameFrom = new Dictionary<GridCoord, GridCoord>();
+            queue.Enqueue(start);
+            cameFrom[start] = start;
+
+            while (queue.Count > 0)
+            {
+                GridCoord current = queue.Dequeue();
+                for (int i = 0; i < Neighbors.Length; i++)
+                {
+                    GridCoord next = current + Neighbors[i];
+                    if (cameFrom.ContainsKey(next))
+                    {
+                        continue;
+                    }
+
+                    if (!occ.CanPlace(footprint, next, bounds))
+                    {
+                        continue;
+                    }
+
+                    cameFrom[next] = current;
+                    if (FootprintAdjacency.AreAdjacent(footprint, next, GridFootprint.Single, targetCell))
+                    {
+                        return ReconstructPath(cameFrom, start, next);
+                    }
+
+                    queue.Enqueue(next);
+                }
+            }
+
+            return new List<GridCoord>();
+        }
+
         private static List<GridCoord> ReconstructPath(
             Dictionary<GridCoord, GridCoord> cameFrom,
             GridCoord start,

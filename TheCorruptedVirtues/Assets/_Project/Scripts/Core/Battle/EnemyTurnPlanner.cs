@@ -42,10 +42,18 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 return EnemyTurnPlan.EndTurn;
             }
 
-            // Already adjacent: attack in place, no move.
-            if (GridMath.ManhattanDistance(actor.Coord, target.Coord) == 1)
+            // Already adjacent (footprint-aware): attack in place, no move.
+            if (FootprintAdjacency.AreAdjacent(actor.Footprint, actor.Coord, target.Footprint, target.Coord))
             {
                 return new EnemyTurnPlan(target, null, attackAfterMove: true);
+            }
+
+            // Multi-tile units (the mobile Great Beast) need footprint-aware
+            // pathfinding; 1x1 units keep the original single-cell logic so
+            // their behaviour — and the tests pinning it — stay unchanged.
+            if (!actor.Footprint.IsSingle)
+            {
+                return PlanMultiTile(actor, target, state, bounds);
             }
 
             state.RebuildOccupancy();
@@ -68,6 +76,39 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
 
             GridCoord finalCoord = segment[segment.Count - 1];
             bool attackAfter = GridMath.ManhattanDistance(finalCoord, target.Coord) == 1;
+            return new EnemyTurnPlan(target, segment, attackAfter);
+        }
+
+        // Footprint-aware approach for multi-tile units: a lift-and-place path
+        // to the nearest anchor where the unit's footprint is adjacent to the
+        // target, capped by MoveRange. Attacks if the move lands adjacent.
+        private static EnemyTurnPlan PlanMultiTile(CombatUnit actor, CombatUnit target, BattleState state, GridBounds bounds)
+        {
+            GridOccupancy others = state.BuildOccupancyExcluding(actor);
+            List<GridCoord> path = GridPathfinderBfs.FindFootprintApproach(
+                actor.Coord, actor.Footprint, target.Coord, others, bounds);
+
+            int totalSteps = path.Count - 1;
+            if (totalSteps <= 0)
+            {
+                return EnemyTurnPlan.EndTurn;
+            }
+
+            int steps = totalSteps < actor.MoveRange ? totalSteps : actor.MoveRange;
+            if (steps <= 0)
+            {
+                return EnemyTurnPlan.EndTurn;
+            }
+
+            List<GridCoord> segment = new List<GridCoord>(steps + 1);
+            for (int i = 0; i <= steps; i++)
+            {
+                segment.Add(path[i]);
+            }
+
+            GridCoord finalAnchor = segment[segment.Count - 1];
+            bool attackAfter = FootprintAdjacency.AreAdjacent(
+                actor.Footprint, finalAnchor, target.Footprint, target.Coord);
             return new EnemyTurnPlan(target, segment, attackAfter);
         }
 
