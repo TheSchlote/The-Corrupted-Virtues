@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using TheCorruptedVirtues.CombatSlice.Battle;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -22,6 +23,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private Transform hpBarFill;
         private Transform hpBarPreview;
         private Transform activeIndicator;
+        private Transform facingArrow;
         private Camera billboardCamera;
 
         private int cachedCurrentHp;
@@ -34,6 +36,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ViewMaterials.SetColor(primitiveRenderer, color);
             BuildHpBar();
             BuildActiveIndicator();
+            BuildFacingArrow();
         }
 
         public void Warp(Vector3 world)
@@ -111,6 +114,27 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (activeIndicator != null)
             {
                 activeIndicator.gameObject.SetActive(active);
+            }
+        }
+
+        public void SetFacing(Facing facing)
+        {
+            if (facingArrow != null)
+            {
+                facingArrow.localRotation = Quaternion.Euler(0f, YawFor(facing), 0f);
+            }
+        }
+
+        private static float YawFor(Facing facing)
+        {
+            // The tick points +Z by default = North; yaw clockwise about Y for
+            // the rest (grid X -> world X, grid Y -> world Z).
+            switch (facing)
+            {
+                case Facing.East: return 90f;
+                case Facing.South: return 180f;
+                case Facing.West: return 270f;
+                default: return 0f; // North
             }
         }
 
@@ -257,6 +281,34 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             activeIndicator = quad.transform;
             activeIndicator.gameObject.SetActive(false);
+        }
+
+        private void BuildFacingArrow()
+        {
+            // A holder at the unit base that we yaw to the facing; a thin tick
+            // poking out the front reads as "this way". Placeholder shape — a
+            // real arrow arrives with art.
+            facingArrow = new GameObject("FacingArrow").transform;
+            facingArrow.SetParent(transform, false);
+            facingArrow.localPosition = new Vector3(0f, -0.45f, 0f);
+
+            GameObject tick = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tick.name = "FacingTick";
+            tick.transform.SetParent(facingArrow, false);
+            tick.transform.localScale = new Vector3(0.16f, 0.06f, 0.6f);
+            tick.transform.localPosition = new Vector3(0f, 0f, 0.55f);
+
+            Collider tickCollider = tick.GetComponent<Collider>();
+            if (tickCollider != null)
+            {
+                Destroy(tickCollider);
+            }
+
+            Renderer tickRenderer = tick.GetComponent<Renderer>();
+            Color tint = Color.Lerp(baseColor, Color.white, 0.6f);
+            tickRenderer.material = ViewMaterials.CreateColored(tint);
+            tickRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            tickRenderer.receiveShadows = false;
         }
 
         private Transform CreateBarQuad(string objectName, Transform parent, float width, Color color, float localOffsetZ)

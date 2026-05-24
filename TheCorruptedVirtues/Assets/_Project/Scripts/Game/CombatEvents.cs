@@ -33,6 +33,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<SelectionChangedEvent> SelectionChanged;
         public event Action<PathPreviewEvent> PathPreviewChanged;
         public event Action<DamageEstimateEvent> DamageEstimateChanged;
+        // M2 facing slice: a unit turned (after a move step, on attack, or at
+        // spawn). Views orient a facing arrow; logic owns the canonical facing.
+        public event Action<UnitFacingChangedEvent> UnitFacingChanged;
         // M2 slice 2: which ability the active player unit has selected, plus
         // its MP cost and the unit's current MP — drives the HUD ability
         // selector line. Cleared (HasSelection=false) on enemy turns / end.
@@ -53,6 +56,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(PathPreviewEvent e) => PathPreviewChanged?.Invoke(e);
         public void RaiseDamageEstimateChanged(DamageEstimateEvent e) => DamageEstimateChanged?.Invoke(e);
+        public void RaiseUnitFacingChanged(UnitFacingChangedEvent e) => UnitFacingChanged?.Invoke(e);
         public void RaiseAbilitySelectionChanged(AbilitySelectionEvent e) => AbilitySelectionChanged?.Invoke(e);
         public void RaiseExecutionGraded(ExecutionGradedEvent e) => ExecutionGraded?.Invoke(e);
         public void RaiseCombatEnded(Faction winner) => CombatEnded?.Invoke(winner);
@@ -98,6 +102,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             Id = id;
             Coord = coord;
+        }
+    }
+
+    public readonly struct UnitFacingChangedEvent
+    {
+        public readonly UnitId Id;
+        public readonly Facing Facing;
+
+        public UnitFacingChangedEvent(UnitId id, Facing facing)
+        {
+            Id = id;
+            Facing = facing;
         }
     }
 
@@ -243,6 +259,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // 1.0 = none; >1 means the attacker has the high-ground bonus. Surfaced
         // so the forecast can explain why the number moved (determinism pillar).
         public readonly float HighGroundMultiplier;
+        // 1.0 = none; >1 is a flank/rear hit. Surfaced alongside high ground.
+        public readonly float FlankingMultiplier;
 
         public DamageEstimateEvent(
             UnitId targetId,
@@ -254,7 +272,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             string attackName,
             string qteName,
             bool isHeal = false,
-            float highGroundMultiplier = 1.0f)
+            float highGroundMultiplier = 1.0f,
+            float flankingMultiplier = 1.0f)
         {
             HasEstimate = true;
             TargetId = targetId;
@@ -267,6 +286,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             QteName = qteName;
             IsHeal = isHeal;
             HighGroundMultiplier = highGroundMultiplier;
+            FlankingMultiplier = flankingMultiplier;
         }
 
         public static DamageEstimateEvent Cleared => default;

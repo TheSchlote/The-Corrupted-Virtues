@@ -1,4 +1,5 @@
 using UnityEngine;
+using TheCorruptedVirtues.CombatSlice.Battle;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -31,6 +32,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // (ring under the unit, glow, arrow, etc). M2 squads need this since
         // multiple units belong to each side.
         void SetActiveIndicator(bool active);
+
+        // Orient the unit's facing indicator (auto-facing arrow). Logic owns
+        // the canonical facing; the view just points the arrow.
+        void SetFacing(Facing facing);
 
         void SetVisible(bool visible);
 

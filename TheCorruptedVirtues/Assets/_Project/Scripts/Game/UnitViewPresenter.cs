@@ -26,6 +26,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.UnitSpawned += OnUnitSpawned;
             events.UnitMoved += OnUnitMoved;
+            events.UnitFacingChanged += OnUnitFacingChanged;
             events.UnitDamaged += OnUnitDamaged;
             events.UnitHealed += OnUnitHealed;
             events.UnitDied += OnUnitDied;
@@ -43,6 +44,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.UnitSpawned -= OnUnitSpawned;
             events.UnitMoved -= OnUnitMoved;
+            events.UnitFacingChanged -= OnUnitFacingChanged;
             events.UnitDamaged -= OnUnitDamaged;
             events.UnitHealed -= OnUnitHealed;
             events.UnitDied -= OnUnitDied;
@@ -73,6 +75,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (views.TryGetValue(e.Id, out IUnitView view))
             {
                 view.MoveTo(grid.GridToWorld(e.Coord, grid.UnitY));
+            }
+        }
+
+        private void OnUnitFacingChanged(UnitFacingChangedEvent e)
+        {
+            if (views.TryGetValue(e.Id, out IUnitView view))
+            {
+                view.SetFacing(e.Facing);
             }
         }
 

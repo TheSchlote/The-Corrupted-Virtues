@@ -154,13 +154,16 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 : (string.IsNullOrEmpty(attackLine) ? string.Empty : $"<size=85%>{attackLine}</size>\n");
 
             string highGround = e.HighGroundMultiplier > 1.01f
-                ? $"  <color=#D9C27A>▲ High ground ×{e.HighGroundMultiplier:0.##}</color>"
+                ? $"  <color=#D9C27A>High ground ×{e.HighGroundMultiplier:0.##}</color>"
+                : string.Empty;
+            string flank = e.FlankingMultiplier > 1.01f
+                ? $"  <color=#E0A0C0>Flanked ×{e.FlankingMultiplier:0.##}</color>"
                 : string.Empty;
 
             damageInfoText.text =
                 header +
                 $"DMG {e.HitDamage}  <size=80%>(Divine {e.DivineDamage})</size>\n" +
-                $"<size=80%>{e.AttackerElement} → {e.DefenderElement}</size>  <color=#{hex}>{matchupLabel}</color>{highGround}";
+                $"<size=80%>{e.AttackerElement} → {e.DefenderElement}</size>  <color=#{hex}>{matchupLabel}</color>{highGround}{flank}";
         }
 
         private void OnAbilitySelectionChanged(AbilitySelectionEvent e)

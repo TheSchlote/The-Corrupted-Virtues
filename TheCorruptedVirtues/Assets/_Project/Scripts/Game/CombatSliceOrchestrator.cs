@@ -164,12 +164,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, List<AbilitySpec> abilities)
         {
+            // Auto-facing starts pointed at the opposing side (players sit at
+            // low X, enemies high), so opening shots are frontal until someone
+            // maneuvers around a flank.
+            Facing facing = faction == Faction.Player ? Facing.East : Facing.West;
             CombatUnit unit = new CombatUnit
             {
                 Id = new UnitId(id),
                 Faction = faction,
                 Coord = coord,
                 SpawnCoord = coord,
+                Facing = facing,
+                SpawnFacing = facing,
                 Stats = stats,
                 Element = element,
                 Abilities = abilities,
@@ -258,6 +264,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             foreach (CombatUnit unit in battle.Units)
             {
                 unit.Coord = unit.SpawnCoord;
+                unit.Facing = unit.SpawnFacing;
                 unit.Hp = unit.MaxHp;
                 unit.Mp = unit.MaxMp;
                 unit.SelectedAbilityIndex = 0;
@@ -268,6 +275,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             foreach (CombatUnit unit in battle.Units)
             {
                 events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp));
+                events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(unit.Id, unit.Facing));
             }
 
             turns.Reset();
@@ -519,7 +527,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            SituationalModifiers mods = ElevationRules.ModifiersFor(activeUnit.Coord, targetUnit.Coord, elevation);
+            SituationalModifiers mods = CombatSituation.For(activeUnit, targetUnit, elevation);
 
             DamageBreakdown hit = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
@@ -540,7 +548,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 hit.ElementMultiplier,
                 ability.Name,
                 qteName,
-                highGroundMultiplier: mods.HighGround));
+                highGroundMultiplier: mods.HighGround,
+                flankingMultiplier: mods.Flanking));
         }
 
         private void HandleConfirm()
@@ -706,8 +715,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             for (int i = 1; i < path.Count; i++)
             {
+                activeUnit.Facing = FacingRules.Toward(path[i - 1], path[i]);
                 activeUnit.Coord = path[i];
                 events.RaiseUnitMoved(new UnitMovedEvent(activeUnit.Id, activeUnit.Coord));
+                events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(activeUnit.Id, activeUnit.Facing));
                 battle.RebuildOccupancy();
                 yield return new WaitForSeconds(moveStepDelaySeconds);
             }
@@ -746,7 +757,16 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            SituationalModifiers mods = ElevationRules.ModifiersFor(attacker.Coord, target.Coord, elevation);
+            SituationalModifiers mods = CombatSituation.For(attacker, target, elevation);
+
+            // Auto-facing: the attacker turns to face whoever it strikes. Kept
+            // out of the flank math above, which reads the *target's* facing.
+            if (ability.Kind != AbilityKind.Support)
+            {
+                attacker.Facing = FacingRules.Toward(attacker.Coord, target.Coord);
+                events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(attacker.Id, attacker.Facing));
+            }
+
             AbilityOutcome outcome = AbilityResolver.Resolve(attacker, target, ability, execution, mods);
 
             if (outcome.IsHeal)

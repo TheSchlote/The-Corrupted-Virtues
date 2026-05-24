@@ -18,6 +18,8 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public Faction Faction;
         public GridCoord Coord;
         public GridCoord SpawnCoord;
+        public Facing Facing;
+        public Facing SpawnFacing;
         public int Hp;
         public int Mp;
         public CombatStats Stats;
