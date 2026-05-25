@@ -54,5 +54,27 @@ namespace TheCorruptedVirtues.Tests
 
             Assert.That(mods.Product, Is.EqualTo(1.0f).Within(1e-5f));
         }
+
+        // Area attacks are non-directional: ForArea keeps high ground but NEVER
+        // flanks, even from directly behind (where For() grants the back bonus).
+        // Both the AoE forecast and the AoE resolve use ForArea, so they agree.
+        [Test]
+        public void ForArea_KeepsHighGround_DropsFlanking()
+        {
+            var elevation = new ElevationMap();
+            elevation.SetLevel(new GridCoord(5, 4), 1); // attacker stands high
+
+            CombatUnit attacker = UnitAt(1, new GridCoord(5, 4), Facing.North); // behind the target
+            CombatUnit target = UnitAt(2, new GridCoord(5, 5), Facing.North);
+
+            // Sanity: For() would grant the back bonus from this position.
+            Assert.That(CombatSituation.For(attacker, target, elevation).Flanking,
+                Is.EqualTo(FlankingRules.BackBonus).Within(1e-5f));
+
+            SituationalModifiers area = CombatSituation.ForArea(attacker, target, elevation);
+
+            Assert.That(area.HighGround, Is.EqualTo(ElevationRules.HighGroundBonus).Within(1e-5f));
+            Assert.That(area.Flanking, Is.EqualTo(1.0f).Within(1e-5f));
+        }
     }
 }

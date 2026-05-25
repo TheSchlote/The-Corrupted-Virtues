@@ -176,8 +176,9 @@ namespace TheCorruptedVirtues.Tests
         public void FullConstructor_SetsAoeFields()
         {
             var a = new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, 18, 1.1f, 16,
-                QteType.SwingMeter, QteDifficulty.Hard, isAreaOfEffect: true, aoeRadius: 1);
+                QteType.SwingMeter, QteDifficulty.Hard, aoeRadius: 1);
 
+            // IsAreaOfEffect is derived from the radius (single source of truth).
             Assert.That(a.IsAreaOfEffect, Is.True);
             Assert.That(a.AoeRadius, Is.EqualTo(1));
         }
@@ -186,9 +187,10 @@ namespace TheCorruptedVirtues.Tests
         public void NegativeAoeRadius_ClampsToZero()
         {
             var a = new AbilitySpec("Bad", AbilityKind.Physical, ElementType.Fire, 10, 1.0f, 0,
-                QteType.SwingMeter, QteDifficulty.Normal, isAreaOfEffect: false, aoeRadius: -3);
+                QteType.SwingMeter, QteDifficulty.Normal, aoeRadius: -3);
 
             Assert.That(a.AoeRadius, Is.EqualTo(0));
+            Assert.That(a.IsAreaOfEffect, Is.False); // clamped radius 0 -> not an area attack
         }
     }
 }

@@ -144,7 +144,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
                 new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, isAreaOfEffect: true, aoeRadius: 1),
+                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, aoeRadius: 1),
             }));
 
             roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
@@ -188,7 +188,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
                 new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, isAreaOfEffect: true, aoeRadius: 1),
+                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, aoeRadius: 1),
             }));
 
             // The corrupted Virtue: a slow, hard-hitting 2x2 with a deep
@@ -624,7 +624,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             // AoE: light the burst tiles centred on the cursor so the player
             // sees the whole area before committing. Single-target clears it.
-            if (ability.AoeRadius > 0 && ability.Kind != AbilityKind.Support)
+            if (ability.IsAreaOfEffect && ability.Kind != AbilityKind.Support)
             {
                 events.RaiseAreaPreviewChanged(new AreaPreviewEvent(
                     AreaOfEffect.BurstTiles(cursorCoord, ability.AoeRadius, grid.Bounds)));
@@ -653,7 +653,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            SituationalModifiers mods = CombatSituation.For(activeUnit, targetUnit, elevation);
+            // Area attacks resolve with ForArea (high ground, no flanking), so
+            // the forecast must use it too — otherwise a flanked hover over-reports
+            // damage that the actual burst won't deal (forecast-matches-resolve).
+            SituationalModifiers mods = ability.IsAreaOfEffect
+                ? CombatSituation.ForArea(activeUnit, targetUnit, elevation)
+                : CombatSituation.For(activeUnit, targetUnit, elevation);
 
             DamageBreakdown hit = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
@@ -888,7 +893,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             // Area attacks hit everyone in the burst around the targeted tile;
             // resolve them together (one win check) and skip the single-target
             // facing turn (they're non-directional).
-            if (ability.AoeRadius > 0 && ability.Kind != AbilityKind.Support)
+            if (ability.IsAreaOfEffect && ability.Kind != AbilityKind.Support)
             {
                 ResolveAreaAbility(attacker, currentAttackCenter, ability, execution);
                 return;

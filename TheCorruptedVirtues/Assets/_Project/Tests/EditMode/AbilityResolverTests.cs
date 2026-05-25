@@ -98,7 +98,7 @@ namespace TheCorruptedVirtues.Tests
         {
             return new AbilitySpec("Nova", AbilityKind.Special, ElementType.Fire, power: 20, scaling: 1.0f,
                 mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal,
-                isAreaOfEffect: true, aoeRadius: 1);
+                aoeRadius: 1);
         }
 
         [Test]
