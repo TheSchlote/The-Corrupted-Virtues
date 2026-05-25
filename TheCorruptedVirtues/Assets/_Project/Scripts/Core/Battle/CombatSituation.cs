@@ -23,5 +23,19 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
 
             return new SituationalModifiers(highGround, flanking);
         }
+
+        // Area attacks are non-directional, so no flanking term — only the
+        // attacker's high ground carries (same for every unit caught in the
+        // burst). Mirrors For() so the AoE forecast and resolve stay in step.
+        public static SituationalModifiers ForArea(CombatUnit attacker, CombatUnit target, ElevationMap elevation)
+        {
+            float highGround = elevation == null
+                ? 1.0f
+                : ElevationRules.HighGroundMultiplier(
+                    elevation.GetLevel(attacker.Coord),
+                    elevation.GetLevel(target.Coord));
+
+            return SituationalModifiers.FromHighGround(highGround);
+        }
     }
 }

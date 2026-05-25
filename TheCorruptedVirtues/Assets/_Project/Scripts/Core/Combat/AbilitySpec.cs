@@ -19,6 +19,10 @@ namespace TheCorruptedVirtues.Combat
         // target and strikes the faced tile. AoE attacks bypass that (they hit
         // an area, not one faced target). Default false = single-target.
         public bool IsAreaOfEffect { get; }
+        // Chebyshev burst radius for area attacks: every enemy within this many
+        // tiles of the targeted tile is hit. 0 = single target. >0 implies an
+        // area attack (and pairs with IsAreaOfEffect for the facing exemption).
+        public int AoeRadius { get; }
 
         // Basic-attack shorthand: free, swing meter, normal difficulty. Keeps
         // the M1.5 call sites and characterization tests unchanged.
@@ -36,7 +40,8 @@ namespace TheCorruptedVirtues.Combat
             int mpCost,
             QteType qteType,
             QteDifficulty qteDifficulty,
-            bool isAreaOfEffect = false)
+            bool isAreaOfEffect = false,
+            int aoeRadius = 0)
         {
             Name = name;
             Kind = kind;
@@ -47,6 +52,7 @@ namespace TheCorruptedVirtues.Combat
             QteType = qteType;
             QteDifficulty = qteDifficulty;
             IsAreaOfEffect = isAreaOfEffect;
+            AoeRadius = aoeRadius < 0 ? 0 : aoeRadius;
         }
     }
 }

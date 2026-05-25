@@ -13,11 +13,16 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private static readonly Color AttackColor = new Color(0.95f, 0.75f, 0.3f);
         private static readonly Color InvalidColor = new Color(0.9f, 0.35f, 0.35f);
         private static readonly Color HighGroundColor = new Color(0.30f, 0.34f, 0.40f);
+        private static readonly Color AreaColor = new Color(0.95f, 0.55f, 0.25f);
 
         private CombatEvents events;
         private GridPresenter grid;
         private Renderer cursorRenderer;
         private PathPreviewRenderer pathPreview;
+
+        // Pooled flat slabs lit on the tiles an AoE attack would hit. Grown on
+        // demand; surplus markers are hidden, never destroyed.
+        private readonly List<GameObject> areaMarkers = new List<GameObject>();
 
         public void Initialize(
             CombatEvents combatEvents,
@@ -33,6 +38,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.GridBuilt += OnGridBuilt;
             events.SelectionChanged += OnSelectionChanged;
             events.PathPreviewChanged += OnPathPreviewChanged;
+            events.AreaPreviewChanged += OnAreaPreviewChanged;
             events.CombatReset += OnCombatReset;
         }
 
@@ -46,6 +52,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.GridBuilt -= OnGridBuilt;
             events.SelectionChanged -= OnSelectionChanged;
             events.PathPreviewChanged -= OnPathPreviewChanged;
+            events.AreaPreviewChanged -= OnAreaPreviewChanged;
             events.CombatReset -= OnCombatReset;
         }
 
@@ -135,6 +142,68 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        // Light the burst tiles of a hovered AoE target; hide any surplus
+        // markers from a previous, larger burst.
+        private void OnAreaPreviewChanged(AreaPreviewEvent e)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<GridCoord> tiles = e.Tiles;
+            int count = tiles == null ? 0 : tiles.Count;
+            for (int i = 0; i < count; i++)
+            {
+                GameObject marker = GetOrCreateMarker(i);
+                marker.transform.position = grid.GridToWorld(tiles[i], grid.CursorY);
+                marker.SetActive(true);
+            }
+
+            for (int i = count; i < areaMarkers.Count; i++)
+            {
+                areaMarkers[i].SetActive(false);
+            }
+        }
+
+        private GameObject GetOrCreateMarker(int index)
+        {
+            if (index < areaMarkers.Count)
+            {
+                return areaMarkers[index];
+            }
+
+            GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            marker.name = $"AreaMarker_{index}";
+            marker.transform.SetParent(transform, false);
+            marker.transform.localScale = new Vector3(0.85f, 0.04f, 0.85f);
+
+            // Decorative: don't let it catch the cursor's ground raycast.
+            Collider markerCollider = marker.GetComponent<Collider>();
+            if (markerCollider != null)
+            {
+                Destroy(markerCollider);
+            }
+
+            Renderer markerRenderer = marker.GetComponent<Renderer>();
+            if (markerRenderer != null)
+            {
+                markerRenderer.material = ViewMaterials.CreateColored(AreaColor);
+            }
+
+            marker.SetActive(false);
+            areaMarkers.Add(marker);
+            return marker;
+        }
+
+        private void HideAllMarkers()
+        {
+            for (int i = 0; i < areaMarkers.Count; i++)
+            {
+                areaMarkers[i].SetActive(false);
+            }
+        }
+
         private void OnCombatReset()
         {
             if (pathPreview != null)
@@ -142,6 +211,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 pathPreview.Clear();
             }
 
+            HideAllMarkers();
             ViewMaterials.SetColor(cursorRenderer, NeutralColor);
         }
 

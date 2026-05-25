@@ -44,6 +44,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private CombatUnit activeUnit;
         private CombatUnit currentAttackTarget;
+        // The tile an area attack bursts from (the cursor tile at confirm). The
+        // forecast highlights and the resolve both centre here, so what lit up
+        // is exactly what gets hit. Unused for single-target abilities.
+        private GridCoord currentAttackCenter;
         private AbilitySpec currentAbility;
         private bool isMoving;
         private bool isAwaitingQte;
@@ -140,6 +144,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
                 new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
+                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, isAreaOfEffect: true, aoeRadius: 1),
             }));
 
             roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
@@ -181,6 +186,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
                 new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
+                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, isAreaOfEffect: true, aoeRadius: 1),
             }));
 
             // The corrupted Virtue: a slow, hard-hitting 2x2 with a deep
@@ -385,6 +391,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 }
                 events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
                 events.RaiseAbilitySelectionChanged(AbilitySelectionEvent.Cleared);
                 StartCoroutine(HandleEnemyTurn());
             }
@@ -572,15 +579,28 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursorCoord, state, hint));
-            RaiseActionEstimate(state, targetUnit, ability);
+            RaiseActionEstimate(state, cursorCoord, targetUnit, ability);
         }
 
-        private void RaiseActionEstimate(SelectionState state, CombatUnit targetUnit, AbilitySpec ability)
+        private void RaiseActionEstimate(SelectionState state, GridCoord cursorCoord, CombatUnit targetUnit, AbilitySpec ability)
         {
             if (state != SelectionState.AttackValid || targetUnit == null)
             {
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
                 return;
+            }
+
+            // AoE: light the burst tiles centred on the cursor so the player
+            // sees the whole area before committing. Single-target clears it.
+            if (ability.AoeRadius > 0 && ability.Kind != AbilityKind.Support)
+            {
+                events.RaiseAreaPreviewChanged(new AreaPreviewEvent(
+                    AreaOfEffect.BurstTiles(cursorCoord, ability.AoeRadius, grid.Bounds)));
+            }
+            else
+            {
+                events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
             }
 
             string qteName = QteDisplayName(ability.QteType);
@@ -659,6 +679,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (validTarget)
             {
                 currentAttackTarget = targetUnit;
+                currentAttackCenter = target;
                 currentAbility = ability;
                 BeginAbilityExecution();
                 return;
@@ -724,6 +745,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+            events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
             currentMeter.Begin(currentAbility.QteDifficulty);
 
             string hint = QteHint(currentAbility);
@@ -832,6 +854,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // Area attacks hit everyone in the burst around the targeted tile;
+            // resolve them together (one win check) and skip the single-target
+            // facing turn (they're non-directional).
+            if (ability.AoeRadius > 0 && ability.Kind != AbilityKind.Support)
+            {
+                ResolveAreaAbility(attacker, currentAttackCenter, ability, execution);
+                return;
+            }
+
             SituationalModifiers mods = CombatSituation.For(attacker, target, elevation);
 
             // Single-target attacks are directional: the attacker turns to face
@@ -858,6 +889,39 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (outcome.TargetDied)
             {
                 events.RaiseUnitDied(outcome.TargetId);
+                CheckWinCondition(attacker.Faction);
+            }
+        }
+
+        // Resolve one area attack: gather every enemy in the burst, apply the
+        // ability to each (AbilityResolver.ResolveArea — high ground but no
+        // flanking), announce per target, then check the win once at the end.
+        private void ResolveAreaAbility(CombatUnit attacker, GridCoord center, AbilitySpec ability, ExecutionResult execution)
+        {
+            List<CombatUnit> targets = AreaOfEffect.CollectTargets(center, ability.AoeRadius, attacker.Faction, battle);
+            if (targets.Count == 0)
+            {
+                return;
+            }
+
+            IReadOnlyList<AbilityOutcome> outcomes =
+                AbilityResolver.ResolveArea(attacker, targets, ability, execution, elevation);
+
+            bool anyDied = false;
+            for (int i = 0; i < outcomes.Count; i++)
+            {
+                AbilityOutcome outcome = outcomes[i];
+                events.RaiseUnitDamaged(new UnitDamagedEvent(
+                    outcome.TargetId, outcome.Amount, outcome.TargetHp, outcome.TargetMaxHp));
+                if (outcome.TargetDied)
+                {
+                    events.RaiseUnitDied(outcome.TargetId);
+                    anyDied = true;
+                }
+            }
+
+            if (anyDied)
+            {
                 CheckWinCondition(attacker.Faction);
             }
         }
