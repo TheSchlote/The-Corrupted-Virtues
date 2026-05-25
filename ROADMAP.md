@@ -4,7 +4,7 @@
 > yours to redirect as the game evolves. Claude reads this for design/scope intent.
 > World & story live in [docs/LORE.md](docs/LORE.md) and [docs/STORY.md](docs/STORY.md).
 >
-> _Last reviewed: 2026-05-22_
+> _Last reviewed: 2026-05-24_
 
 ---
 
@@ -165,13 +165,14 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE) _(slice 2)_
 - [x] **Pulled forward from M3:** grid elevation/terrain — high ground = ×1.25 damage; folded into the `SituationalModifiers` seam + shown in the forecast. _(shipped on `feature/m2-terrain-elevation`, 2026-05-24)_
 - [x] **Facing / flanking:** auto-facing (face last step / face target on attack) + back ×1.5 / side ×1.25 / front ×1.0 + facing arrow. Single-target attacks are directional; AoE-exempt via `AbilitySpec.IsAreaOfEffect`. _(shipped on `feature/m2-facing-flanking`, 2026-05-24)_
-- [ ] Win / loss / battle-end flow; basic enemy AI _(terminal state landed in M1; AI + multi-unit flow remains)_
+- [x] **AoE targeting:** Chebyshev burst (`AbilitySpec.AoeRadius`); pure `AreaOfEffect` (burst tiles + target collection) + `AbilityResolver.ResolveArea` (high ground, no flanking — non-directional); affected tiles highlighted on hover, multi-target resolve in one win check. Flame Nova added. _(shipped on `feature/m2-finish`, 2026-05-24)_
+- [x] Win / loss / battle-end flow; **smarter enemy AI** — ability/MP use (best affordable forecast damage) + focus-fire (weakest adjacent target). Terminal state landed in M1; per-unit multi-unit flow in slice 1. _(AI shipped on `feature/m2-finish`, 2026-05-24)_
 - [x] **Great Beast boss:** mobile 2×2 unit (footprint pathfinding + adjacency) + **Corruption gauge** (its HP pool; purify-not-kill → PURIFIED banner) + purple corruption aura. _(shipped on `feature/m2-great-beast`, 2026-05-24; playtested — "barely won")_
 - [x] Additional QTE types — framework + **button mash** _(slice 2)_
-- [ ] More QTE types: timed press, matching _(later slice)_
+- [x] More QTE types: **timed press + matching** — new `IExecutionMeter` types + pure graders (`TimedPressCalculator` / `MatchingCalculator`); matching reads directional input. Lance of Dawn / Cinder Combo added. _(shipped on `feature/m2-finish`, 2026-05-24)_
 - [x] Decompose god-controller → pure-C# `Battle` systems: `TurnSystem` + `AbilityResolver` (the "AttackSystem") + `BattleState`/`EnemyTurnPlanner`/`MovementRules`; HUD was already split into presenters _(slice 3)_
-- [ ] Digimon-Survive stat-semantics pass _(element matchup UI shipped in M1.5)_
-- [ ] → tag `v0.2.0`
+- [x] Digimon-Survive stat-semantics pass — **spec alignment**: `docs/DESIGN.md` brought in line with the shipped math (execution tiers, situational terms) + a canonical stat-role table; `CombatStats` documented. No balance change — constants kept at playtested values. _(shipped on `feature/m2-finish`, 2026-05-24)_
+- [ ] → tag `v0.2.0` _(all M2 build items shipped, 202 EditMode tests green; ready to tag after a playtest)_
 
 ### M3+ — Campaign _(after the loop is provably fun)_
 - [ ] Region → boss template ([docs/STORY.md](docs/STORY.md)): traverse a region, then a
@@ -189,7 +190,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 ## 6. Functionality Backlog _(unscheduled — reorder/triage freely)_
 
 **Combat / QTE**
-- [ ] QTE types: swing meter (have), button mash, timed press, matching/sequence
+- [x] QTE types: swing meter, button mash, timed press, matching — all shipped _(line / sequence / charge variants later)_/sequence
 - [ ] Ability targeting (single / AoE / line); counterattacks / reactions
 - [ ] "Execution" tier tuning (Fumble/Miss/Hit/Divine; optional 5th "LateHit" tier — deferred)
 - [ ] Corruption-gauge variants per Great Beast (unique purify mechanics)
