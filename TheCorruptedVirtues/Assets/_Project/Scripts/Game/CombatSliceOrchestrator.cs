@@ -428,19 +428,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             bool occupiedByOther = battle.Occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
             bool reachable = reachableSteps > 0 && !hasMovedThisTurn;
 
-            bool wantsTarget = false;
-            if (targetUnit != null && targetUnit.IsAlive)
-            {
-                int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
-                // Footprint-aware so the preview matches HandleConfirm's own
-                // validity check — otherwise attacking a 2x2 boss from any non-
-                // anchor cell shows no forecast yet still fires on confirm.
-                bool adjacent = FootprintAdjacency.AreAdjacent(
-                    activeUnit.Footprint, activeUnit.Coord, targetUnit.Footprint, targetUnit.Coord);
-                wantsTarget = isSupport
-                    ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
-                    : (targetUnit.Faction != activeUnit.Faction && adjacent);
-            }
+            // Same rule the commit path (HandleConfirm) uses, so preview and
+            // confirm never disagree (AbilityTargeting is the single source).
+            bool wantsTarget = AbilityTargeting.IsValidTarget(activeUnit, ability, targetUnit);
             bool validAbilityTarget = wantsTarget && affordable && !hasAttackedThisTurn;
 
             SelectionState state;
@@ -565,16 +555,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 targetUnit = activeUnit;
             }
 
-            bool validTarget = false;
-            if (!hasAttackedThisTurn && affordable && targetUnit != null && targetUnit.IsAlive)
-            {
-                int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
-                bool adjacent = FootprintAdjacency.AreAdjacent(
-                    activeUnit.Footprint, activeUnit.Coord, targetUnit.Footprint, targetUnit.Coord);
-                validTarget = isSupport
-                    ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
-                    : (targetUnit.Faction != activeUnit.Faction && adjacent);
-            }
+            bool validTarget = !hasAttackedThisTurn && affordable
+                && AbilityTargeting.IsValidTarget(activeUnit, ability, targetUnit);
 
             if (validTarget)
             {
