@@ -1,12 +1,14 @@
 using NUnit.Framework;
+using TheCorruptedVirtues.Combat;
 using TheCorruptedVirtues.CombatSlice.Battle;
 using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.Tests
 {
     // Pins the enemy AI heuristic extracted into EnemyTurnPlanner: target the
-    // nearest opponent, attack if already adjacent, else approach and stop one
-    // tile short (attacking if that lands adjacent).
+    // nearest opponent, attack if already adjacent (focus-firing the weakest
+    // when several are in reach), else approach and stop one tile short. Also
+    // pins ability selection — strongest affordable offensive ability.
     public class EnemyTurnPlannerTests
     {
         private static readonly GridBounds Bounds = new GridBounds(8, 8);
@@ -111,6 +113,67 @@ namespace TheCorruptedVirtues.Tests
 
             Assert.That(plan.HasMove, Is.False);
             Assert.That(plan.AttackAfterMove, Is.False);
+        }
+
+        // === Focus-fire + ability selection (M2 AI slice) ===
+
+        [Test]
+        public void Plan_MultipleAdjacent_FocusesWeakestAndCarriesAbility()
+        {
+            CombatUnit actor = BattleTestFactory.Unit(1, Faction.Enemy, new GridCoord(5, 5));
+            CombatUnit healthy = BattleTestFactory.Unit(2, Faction.Player, new GridCoord(5, 4), hp: 100);
+            CombatUnit wounded = BattleTestFactory.Unit(3, Faction.Player, new GridCoord(4, 5), hp: 100);
+            wounded.Hp = 12; // both adjacent; the wounded one should be focused
+            BattleState state = StateWith(actor, healthy, wounded);
+
+            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(actor, state, Bounds);
+
+            Assert.That(plan.Target, Is.SameAs(wounded));
+            Assert.That(plan.AttackAfterMove, Is.True);
+            Assert.That(plan.HasMove, Is.False);
+            Assert.That(plan.Ability, Is.Not.Null);
+        }
+
+        private static CombatUnit EnemyWithSpecial(int mp, out AbilitySpec special)
+        {
+            CombatUnit actor = BattleTestFactory.Unit(1, Faction.Enemy, new GridCoord(5, 5), mp: mp, element: ElementType.Dark);
+            special = new AbilitySpec("Dark Pulse", AbilityKind.Special, ElementType.Dark, power: 30, scaling: 1.2f,
+                mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal);
+            actor.Abilities.Add(special);
+            return actor;
+        }
+
+        [Test]
+        public void ChooseAbility_PicksHighestAffordableDamage()
+        {
+            CombatUnit actor = EnemyWithSpecial(mp: 20, out AbilitySpec special);
+            CombatUnit target = BattleTestFactory.Unit(2, Faction.Player, new GridCoord(5, 4), element: ElementType.Dark);
+
+            Assert.That(EnemyTurnPlanner.ChooseAbility(actor, target), Is.SameAs(special));
+        }
+
+        [Test]
+        public void ChooseAbility_UnaffordableSpecial_FallsBackToBasic()
+        {
+            CombatUnit actor = EnemyWithSpecial(mp: 0, out AbilitySpec _); // can't pay the 10 MP
+            CombatUnit target = BattleTestFactory.Unit(2, Faction.Player, new GridCoord(5, 4), element: ElementType.Dark);
+
+            Assert.That(EnemyTurnPlanner.ChooseAbility(actor, target), Is.SameAs(actor.BasicAttack));
+        }
+
+        [Test]
+        public void ChooseAbility_NeverPicksSupport()
+        {
+            CombatUnit actor = BattleTestFactory.Unit(1, Faction.Enemy, new GridCoord(5, 5), mp: 50, element: ElementType.Dark);
+            // A wildly strong heal must never be selected as an attack.
+            actor.Abilities.Add(new AbilitySpec("Mend", AbilityKind.Support, ElementType.Dark, power: 999, scaling: 9.9f,
+                mpCost: 5, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal));
+            CombatUnit target = BattleTestFactory.Unit(2, Faction.Player, new GridCoord(5, 4), element: ElementType.Dark);
+
+            AbilitySpec chosen = EnemyTurnPlanner.ChooseAbility(actor, target);
+
+            Assert.That(chosen.Kind, Is.Not.EqualTo(AbilityKind.Support));
+            Assert.That(chosen, Is.SameAs(actor.BasicAttack));
         }
     }
 }

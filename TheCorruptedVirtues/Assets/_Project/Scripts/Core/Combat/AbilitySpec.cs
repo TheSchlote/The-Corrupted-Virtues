@@ -15,10 +15,15 @@ namespace TheCorruptedVirtues.Combat
         public int MpCost { get; }
         public QteType QteType { get; }
         public QteDifficulty QteDifficulty { get; }
-        // Single-target attacks are directional: the attacker turns to face its
-        // target and strikes the faced tile. AoE attacks bypass that (they hit
-        // an area, not one faced target). Default false = single-target.
-        public bool IsAreaOfEffect { get; }
+        // Chebyshev burst radius for area attacks: every enemy within this many
+        // tiles of the targeted tile is hit. 0 = single target.
+        public int AoeRadius { get; }
+
+        // An area attack hits a burst rather than one faced tile, so it's
+        // non-directional and exempt from the single-target facing/flank rule.
+        // Derived from the radius (single source of truth) so the two can never
+        // disagree: an ability is AoE iff it has a burst radius.
+        public bool IsAreaOfEffect => AoeRadius > 0;
 
         // Basic-attack shorthand: free, swing meter, normal difficulty. Keeps
         // the M1.5 call sites and characterization tests unchanged.
@@ -36,7 +41,7 @@ namespace TheCorruptedVirtues.Combat
             int mpCost,
             QteType qteType,
             QteDifficulty qteDifficulty,
-            bool isAreaOfEffect = false)
+            int aoeRadius = 0)
         {
             Name = name;
             Kind = kind;
@@ -46,7 +51,7 @@ namespace TheCorruptedVirtues.Combat
             MpCost = mpCost;
             QteType = qteType;
             QteDifficulty = qteDifficulty;
-            IsAreaOfEffect = isAreaOfEffect;
+            AoeRadius = aoeRadius < 0 ? 0 : aoeRadius;
         }
     }
 }

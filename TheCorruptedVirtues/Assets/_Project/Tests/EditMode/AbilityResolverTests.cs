@@ -91,5 +91,58 @@ namespace TheCorruptedVirtues.Tests
 
             Assert.That(fromHigh.Amount, Is.GreaterThan(onLevel.Amount));
         }
+
+        // === Area attacks (M2 AoE slice) ===
+
+        private static AbilitySpec Nova()
+        {
+            return new AbilitySpec("Nova", AbilityKind.Special, ElementType.Fire, power: 20, scaling: 1.0f,
+                mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal,
+                aoeRadius: 1);
+        }
+
+        [Test]
+        public void ResolveArea_ReturnsOneOutcomePerTarget_AndDamagesEach()
+        {
+            CombatUnit attacker = Attacker();
+            CombatUnit t1 = BattleTestFactory.Unit(2, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+            CombatUnit t2 = BattleTestFactory.Unit(3, Faction.Enemy, new GridCoord(1, 1), hp: 10000, element: ElementType.Light);
+
+            var outcomes = AbilityResolver.ResolveArea(attacker, new[] { t1, t2 }, Nova(), ExecutionResult.Hit, null);
+
+            Assert.That(outcomes.Count, Is.EqualTo(2));
+            Assert.That(t1.Hp, Is.LessThan(10000));
+            Assert.That(t2.Hp, Is.LessThan(10000));
+        }
+
+        [Test]
+        public void ResolveArea_FlatGround_AppliesNoSituationalBonus()
+        {
+            CombatUnit attacker = Attacker();
+            CombatUnit areaTarget = BattleTestFactory.Unit(2, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+            CombatUnit plainTarget = BattleTestFactory.Unit(3, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+
+            var outcomes = AbilityResolver.ResolveArea(attacker, new[] { areaTarget }, Nova(), ExecutionResult.Hit, null);
+            AbilityOutcome plain = AbilityResolver.Resolve(attacker, plainTarget, Nova(), ExecutionResult.Hit, SituationalModifiers.None);
+
+            // No elevation, no flanking term for AoE -> identical to the no-bonus single hit.
+            Assert.That(outcomes[0].Amount, Is.EqualTo(plain.Amount));
+        }
+
+        [Test]
+        public void ResolveArea_HighGround_BoostsEveryHit()
+        {
+            ElevationMap elevation = new ElevationMap();
+            elevation.SetLevel(new GridCoord(0, 0), 1); // attacker stands high
+
+            CombatUnit attacker = Attacker(); // at (0,0)
+            CombatUnit highHit = BattleTestFactory.Unit(2, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+            CombatUnit flatHit = BattleTestFactory.Unit(3, Faction.Enemy, new GridCoord(1, 0), hp: 10000, element: ElementType.Light);
+
+            var high = AbilityResolver.ResolveArea(attacker, new[] { highHit }, Nova(), ExecutionResult.Hit, elevation);
+            var flat = AbilityResolver.ResolveArea(attacker, new[] { flatHit }, Nova(), ExecutionResult.Hit, null);
+
+            Assert.That(high[0].Amount, Is.GreaterThan(flat[0].Amount));
+        }
     }
 }

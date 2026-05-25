@@ -32,6 +32,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<IReadOnlyList<UnitId>> TurnOrderChanged;
         public event Action<SelectionChangedEvent> SelectionChanged;
         public event Action<PathPreviewEvent> PathPreviewChanged;
+        // M2 AoE slice: the tiles an area attack would hit, for highlighting
+        // when the player hovers a valid AoE target. Cleared (empty) otherwise.
+        public event Action<AreaPreviewEvent> AreaPreviewChanged;
         public event Action<DamageEstimateEvent> DamageEstimateChanged;
         // M2 facing slice: a unit turned (after a move step, on attack, or at
         // spawn). Views orient a facing arrow; logic owns the canonical facing.
@@ -55,6 +58,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseTurnOrderChanged(IReadOnlyList<UnitId> upcoming) => TurnOrderChanged?.Invoke(upcoming);
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(PathPreviewEvent e) => PathPreviewChanged?.Invoke(e);
+        public void RaiseAreaPreviewChanged(AreaPreviewEvent e) => AreaPreviewChanged?.Invoke(e);
         public void RaiseDamageEstimateChanged(DamageEstimateEvent e) => DamageEstimateChanged?.Invoke(e);
         public void RaiseUnitFacingChanged(UnitFacingChangedEvent e) => UnitFacingChanged?.Invoke(e);
         public void RaiseAbilitySelectionChanged(AbilitySelectionEvent e) => AbilitySelectionChanged?.Invoke(e);
@@ -169,6 +173,23 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         }
 
         public static PathPreviewEvent Cleared => new PathPreviewEvent(System.Array.Empty<GridCoord>(), 0);
+    }
+
+    // The tiles an area attack would hit (M2 AoE slice), for grid highlighting.
+    // HasArea=false / an empty list is the cleared form; default(struct) is that
+    // cleared form by design (Tiles is null -> treat as empty).
+    public readonly struct AreaPreviewEvent
+    {
+        public readonly bool HasArea;
+        public readonly IReadOnlyList<GridCoord> Tiles;
+
+        public AreaPreviewEvent(IReadOnlyList<GridCoord> tiles)
+        {
+            HasArea = tiles != null && tiles.Count > 0;
+            Tiles = tiles;
+        }
+
+        public static AreaPreviewEvent Cleared => default;
     }
 
     public readonly struct SelectionChangedEvent

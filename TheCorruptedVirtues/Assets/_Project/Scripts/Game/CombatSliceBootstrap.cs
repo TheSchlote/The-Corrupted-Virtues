@@ -21,10 +21,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             PathPreviewRenderer pathPreview = CreatePathPreview(grid);
             IExecutionMeter swingMeter = CreateSwingMeter();
             IExecutionMeter buttonMashMeter = CreateButtonMashMeter();
+            IExecutionMeter timedPressMeter = CreateTimedPressMeter();
+            IExecutionMeter matchingMeter = CreateMatchingMeter();
             Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>
             {
                 { QteType.SwingMeter, swingMeter },
                 { QteType.ButtonMash, buttonMashMeter },
+                { QteType.TimedPress, timedPressMeter },
+                { QteType.Matching, matchingMeter },
             };
 
             CombatEvents events = new CombatEvents();
@@ -148,6 +152,22 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ButtonMashUiFactory.ButtonMashUi ui = ButtonMashUiFactory.Build();
             ButtonMashController meter = ui.Root.AddComponent<ButtonMashController>();
             meter.SetReferences(ui.Root, ui.Slider, ui.Text);
+            return meter;
+        }
+
+        private IExecutionMeter CreateTimedPressMeter()
+        {
+            TimedPressUiFactory.TimedPressUi ui = TimedPressUiFactory.Build();
+            TimedPressController meter = ui.Root.AddComponent<TimedPressController>();
+            meter.SetReferences(ui.Root, ui.Marker, ui.HitZone, ui.DivineZone, ui.Text);
+            return meter;
+        }
+
+        private IExecutionMeter CreateMatchingMeter()
+        {
+            MatchingUiFactory.MatchingUi ui = MatchingUiFactory.Build();
+            MatchingController meter = ui.Root.AddComponent<MatchingController>();
+            meter.SetReferences(ui.Root, ui.SequenceText, ui.CaptionText);
             return meter;
         }
     }

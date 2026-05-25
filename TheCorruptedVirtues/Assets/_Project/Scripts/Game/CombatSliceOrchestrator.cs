@@ -33,9 +33,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private CombatEvents events;
         private GridPresenter grid;
         private ElevationMap elevation;
-        // M2: this branch loads the Great Beast boss fight (2 players vs one 2x2
-        // boss) instead of the 2v2 squad fight. Flip to playtest the squads.
-        [SerializeField] private bool greatBeastEncounter = true;
+        // The roster is data now (EncounterLibrary). F1 cycles this list and the
+        // index wraps; index 0 loads at startup. Terrain stays shared (BuildTerrain).
+        private IReadOnlyList<EncounterSpec> encounters;
+        private int encounterIndex;
         private TacticalCursorController cursor;
         private readonly Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>();
         private IExecutionMeter currentMeter;
@@ -44,6 +45,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private CombatUnit activeUnit;
         private CombatUnit currentAttackTarget;
+        // The tile an area attack bursts from (the cursor tile at confirm). The
+        // forecast highlights and the resolve both centre here, so what lit up
+        // is exactly what gets hit. Unused for single-target abilities.
+        private GridCoord currentAttackCenter;
         private AbilitySpec currentAbility;
         private bool isMoving;
         private bool isAwaitingQte;
@@ -77,17 +82,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
             moveStepDelaySeconds = moveStepDelay;
 
-            battle = new BattleState();
-            turns = new TurnSystem(battle);
-
-            if (greatBeastEncounter)
-            {
-                BuildGreatBeastEncounter();
-            }
-            else
-            {
-                BuildSquads();
-            }
+            encounters = EncounterLibrary.All();
+            encounterIndex = 0;
+            LoadCurrentEncounter();
             BuildTerrain();
 
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
@@ -96,110 +93,21 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ResetSliceState();
         }
 
-        // 2v2 squads with four distinct elements so a single fight surfaces
-        // multiple matchups (Light↔Dark mutual STRONG, Fire↔Water STRONG one
-        // direction, plus the neutral cross-pairs). M2 slice 2: each unit now
-        // carries an ability list (index 0 = the free basic attack) and MP.
-        // Players get a second ability that costs MP and is graded harder
-        // (the risk/reward gradient); one player unit's is a Support heal.
-        // Spawn data stays hardcoded here; ScriptableObjects come later.
-        private void BuildSquads()
+        // Build (or rebuild) the battle from the current encounter's data —
+        // fresh CombatUnits via EncounterSpec.BuildRoster. Terrain is built once
+        // in Initialize and shared across encounters (not per-encounter yet).
+        private void LoadCurrentEncounter()
         {
-            List<CombatUnit> roster = new List<CombatUnit>();
-
-            CombatStats lightFast = new CombatStats(
-                maxHP: 90, maxMP: 20,
-                attack: 16, defense: 70,
-                specialAttack: 14, specialDefense: 70,
-                speed: 14);
-            CombatStats fireSturdy = new CombatStats(
-                maxHP: 110, maxMP: 24,
-                attack: 14, defense: 90,
-                specialAttack: 16, specialDefense: 90,
-                speed: 8);
-            CombatStats darkFast = new CombatStats(
-                maxHP: 90, maxMP: 20,
-                attack: 16, defense: 70,
-                specialAttack: 14, specialDefense: 70,
-                speed: 14);
-            CombatStats waterSturdy = new CombatStats(
-                maxHP: 110, maxMP: 24,
-                attack: 14, defense: 90,
-                specialAttack: 16, specialDefense: 90,
-                speed: 8);
-
-            roster.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
-            {
-                new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
-                new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
-                new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
-            }));
-            roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
-            {
-                new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
-                new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
-            }));
-
-            roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
-            {
-                new AbilitySpec("Corruption Strike", AbilityKind.Physical, ElementType.Dark, power: 10, scaling: 1.0f),
-            }));
-            roster.Add(MakeUnit(4, Faction.Enemy, new GridCoord(6, 4), waterSturdy, ElementType.Water, new List<AbilitySpec>
-            {
-                new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
-            }));
-
-            battle.SetRoster(roster);
-        }
-
-        // M2 Great Beast slice: a boss fight - the same two player units versus
-        // one 2x2 corrupted Virtue. Its deep HP pool is the Corruption gauge;
-        // depleting it purifies (wins). Hardcoded like the squads; encounter
-        // data comes later. Stats/positions are first-pass, tunable in playtest.
-        private void BuildGreatBeastEncounter()
-        {
-            List<CombatUnit> roster = new List<CombatUnit>();
-
-            CombatStats lightFast = new CombatStats(
-                maxHP: 90, maxMP: 20, attack: 16, defense: 70,
-                specialAttack: 14, specialDefense: 70, speed: 14);
-            CombatStats fireSturdy = new CombatStats(
-                maxHP: 110, maxMP: 24, attack: 14, defense: 90,
-                specialAttack: 16, specialDefense: 90, speed: 8);
-
-            roster.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
-            {
-                new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
-                new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
-                new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
-            }));
-            roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
-            {
-                new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
-                new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
-            }));
-
-            // The corrupted Virtue: a slow, hard-hitting 2x2 with a deep
-            // Corruption pool (its HP). MakeUnit gives it West facing + the
-            // standard move range; footprint + boss flag set after.
-            CombatStats beastStats = new CombatStats(
-                maxHP: 400, maxMP: 0, attack: 22, defense: 80,
-                specialAttack: 10, specialDefense: 80, speed: 6);
-            CombatUnit beast = MakeUnit(3, Faction.Enemy, new GridCoord(5, 4), beastStats, ElementType.Dark, new List<AbilitySpec>
-            {
-                new AbilitySpec("Corruption Slam", AbilityKind.Physical, ElementType.Dark, power: 14, scaling: 1.0f),
-            });
-            beast.Footprint = new GridFootprint(2, 2);
-            beast.IsGreatBeast = true;
-            roster.Add(beast);
-
-            battle.SetRoster(roster);
+            battle = new BattleState();
+            turns = new TurnSystem(battle);
+            battle.SetRoster(encounters[encounterIndex].BuildRoster());
         }
 
         // M2 terrain slice: a small high-ground plateau in the contested mid-
         // field. Both squads start equidistant from it, so taking the high
         // ground is a real opening choice. Level 1 = one step up (a ×1.25 hit
-        // against a lower target). Hardcoded like the roster; data-driven later.
+        // against a lower target). Shared across encounters for now; per-encounter
+        // terrain data comes with varied maps.
         private void BuildTerrain()
         {
             elevation = new ElevationMap();
@@ -216,31 +124,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             grid.SetElevation(elevation);
         }
 
-        private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, List<AbilitySpec> abilities)
-        {
-            // Auto-facing starts pointed at the opposing side (players sit at
-            // low X, enemies high), so opening shots are frontal until someone
-            // maneuvers around a flank.
-            Facing facing = faction == Faction.Player ? Facing.East : Facing.West;
-            CombatUnit unit = new CombatUnit
-            {
-                Id = new UnitId(id),
-                Faction = faction,
-                Coord = coord,
-                SpawnCoord = coord,
-                Facing = facing,
-                SpawnFacing = facing,
-                Stats = stats,
-                Element = element,
-                Abilities = abilities,
-                SelectedAbilityIndex = 0,
-                MoveRange = 4
-            };
-            unit.Hp = unit.MaxHp;
-            unit.Mp = unit.MaxMp;
-            return unit;
-        }
-
         private void Update()
         {
             if (!started)
@@ -251,6 +134,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (GameInput.Current.ResetPressed)
             {
                 ResetSliceState();
+                return;
+            }
+
+            if (GameInput.Current.SwitchEncounterPressed)
+            {
+                SwitchEncounter();
                 return;
             }
 
@@ -301,6 +190,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         }
 
         private bool IsPlayerTurn => activeUnit != null && activeUnit.Faction == Faction.Player;
+
+        // Debug/playtest (F1): cycle to the next encounter and rebuild. Terrain
+        // is unchanged; StopAllCoroutines abandons any in-flight move/QTE/enemy
+        // turn before the rebuild.
+        private void SwitchEncounter()
+        {
+            StopAllCoroutines();
+            encounterIndex = (encounterIndex + 1) % encounters.Count;
+            LoadCurrentEncounter();
+            ResetSliceState();
+        }
 
         private void ResetSliceState()
         {
@@ -381,6 +281,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 }
                 events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
                 events.RaiseAbilitySelectionChanged(AbilitySelectionEvent.Cleared);
                 StartCoroutine(HandleEnemyTurn());
             }
@@ -436,6 +337,23 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return meters.TryGetValue(type, out IExecutionMeter meter) && meter != null
                 ? meter.DisplayName
                 : "QTE";
+        }
+
+        // The on-screen prompt for the QTE the player is about to perform.
+        // Each type drives a different interaction, so each gets its own verb.
+        private static string QteHint(AbilitySpec ability)
+        {
+            switch (ability.QteType)
+            {
+                case QteType.ButtonMash:
+                    return "Mash Confirm!";
+                case QteType.TimedPress:
+                    return "Confirm: press on the target!";
+                case QteType.Matching:
+                    return "Repeat the sequence (arrows / D-pad)!";
+                default:
+                    return ability.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing";
+            }
         }
 
         private void UpdatePreview()
@@ -510,14 +428,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             bool occupiedByOther = battle.Occupancy.IsOccupied(cursorCoord) && cursorCoord != activeUnit.Coord;
             bool reachable = reachableSteps > 0 && !hasMovedThisTurn;
 
-            bool wantsTarget = false;
-            if (targetUnit != null && targetUnit.IsAlive)
-            {
-                int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
-                wantsTarget = isSupport
-                    ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
-                    : (targetUnit.Faction != activeUnit.Faction && dist == 1);
-            }
+            // Same rule the commit path (HandleConfirm) uses, so preview and
+            // confirm never disagree (AbilityTargeting is the single source).
+            bool wantsTarget = AbilityTargeting.IsValidTarget(activeUnit, ability, targetUnit);
             bool validAbilityTarget = wantsTarget && affordable && !hasAttackedThisTurn;
 
             SelectionState state;
@@ -551,15 +464,28 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursorCoord, state, hint));
-            RaiseActionEstimate(state, targetUnit, ability);
+            RaiseActionEstimate(state, cursorCoord, targetUnit, ability);
         }
 
-        private void RaiseActionEstimate(SelectionState state, CombatUnit targetUnit, AbilitySpec ability)
+        private void RaiseActionEstimate(SelectionState state, GridCoord cursorCoord, CombatUnit targetUnit, AbilitySpec ability)
         {
             if (state != SelectionState.AttackValid || targetUnit == null)
             {
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+                events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
                 return;
+            }
+
+            // AoE: light the burst tiles centred on the cursor so the player
+            // sees the whole area before committing. Single-target clears it.
+            if (ability.IsAreaOfEffect && ability.Kind != AbilityKind.Support)
+            {
+                events.RaiseAreaPreviewChanged(new AreaPreviewEvent(
+                    AreaOfEffect.BurstTiles(cursorCoord, ability.AoeRadius, grid.Bounds)));
+            }
+            else
+            {
+                events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
             }
 
             string qteName = QteDisplayName(ability.QteType);
@@ -581,7 +507,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            SituationalModifiers mods = CombatSituation.For(activeUnit, targetUnit, elevation);
+            // Area attacks resolve with ForArea (high ground, no flanking), so
+            // the forecast must use it too — otherwise a flanked hover over-reports
+            // damage that the actual burst won't deal (forecast-matches-resolve).
+            SituationalModifiers mods = ability.IsAreaOfEffect
+                ? CombatSituation.ForArea(activeUnit, targetUnit, elevation)
+                : CombatSituation.For(activeUnit, targetUnit, elevation);
 
             DamageBreakdown hit = DamageCalculator.ComputeDamage(
                 activeUnit.Stats, activeUnit.Element,
@@ -624,20 +555,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 targetUnit = activeUnit;
             }
 
-            bool validTarget = false;
-            if (!hasAttackedThisTurn && affordable && targetUnit != null && targetUnit.IsAlive)
-            {
-                int dist = GridMath.ManhattanDistance(activeUnit.Coord, targetUnit.Coord);
-                bool adjacent = FootprintAdjacency.AreAdjacent(
-                    activeUnit.Footprint, activeUnit.Coord, targetUnit.Footprint, targetUnit.Coord);
-                validTarget = isSupport
-                    ? (targetUnit.Faction == activeUnit.Faction && dist <= 1)
-                    : (targetUnit.Faction != activeUnit.Faction && adjacent);
-            }
+            bool validTarget = !hasAttackedThisTurn && affordable
+                && AbilityTargeting.IsValidTarget(activeUnit, ability, targetUnit);
 
             if (validTarget)
             {
                 currentAttackTarget = targetUnit;
+                currentAttackCenter = target;
                 currentAbility = ability;
                 BeginAbilityExecution();
                 return;
@@ -703,11 +627,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
+            events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
             currentMeter.Begin(currentAbility.QteDifficulty);
 
-            string hint = currentAbility.QteType == QteType.ButtonMash
-                ? "Mash Confirm!"
-                : (currentAbility.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing");
+            string hint = QteHint(currentAbility);
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, hint));
         }
 
@@ -813,6 +736,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // Area attacks hit everyone in the burst around the targeted tile;
+            // resolve them together (one win check) and skip the single-target
+            // facing turn (they're non-directional).
+            if (ability.IsAreaOfEffect && ability.Kind != AbilityKind.Support)
+            {
+                ResolveAreaAbility(attacker, currentAttackCenter, ability, execution);
+                return;
+            }
+
             SituationalModifiers mods = CombatSituation.For(attacker, target, elevation);
 
             // Single-target attacks are directional: the attacker turns to face
@@ -843,6 +775,39 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        // Resolve one area attack: gather every enemy in the burst, apply the
+        // ability to each (AbilityResolver.ResolveArea — high ground but no
+        // flanking), announce per target, then check the win once at the end.
+        private void ResolveAreaAbility(CombatUnit attacker, GridCoord center, AbilitySpec ability, ExecutionResult execution)
+        {
+            List<CombatUnit> targets = AreaOfEffect.CollectTargets(center, ability.AoeRadius, attacker.Faction, battle);
+            if (targets.Count == 0)
+            {
+                return;
+            }
+
+            IReadOnlyList<AbilityOutcome> outcomes =
+                AbilityResolver.ResolveArea(attacker, targets, ability, execution, elevation);
+
+            bool anyDied = false;
+            for (int i = 0; i < outcomes.Count; i++)
+            {
+                AbilityOutcome outcome = outcomes[i];
+                events.RaiseUnitDamaged(new UnitDamagedEvent(
+                    outcome.TargetId, outcome.Amount, outcome.TargetHp, outcome.TargetMaxHp));
+                if (outcome.TargetDied)
+                {
+                    events.RaiseUnitDied(outcome.TargetId);
+                    anyDied = true;
+                }
+            }
+
+            if (anyDied)
+            {
+                CheckWinCondition(attacker.Faction);
+            }
+        }
+
         private void CheckWinCondition(Faction lastAttackerFaction)
         {
             if (battle.TryGetWinner(lastAttackerFaction, out Faction winner))
@@ -864,7 +829,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 yield break;
             }
 
-            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(activeUnit, battle, grid.Bounds);
+            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(activeUnit, battle, grid.Bounds, elevation);
 
             if (plan.Target == null)
             {
@@ -878,7 +843,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 if (plan.AttackAfterMove)
                 {
                     currentAttackTarget = plan.Target;
-                    ResolveEnemyAttackAndEnd();
+                    ResolveEnemyAttackAndEnd(plan.Ability);
                 }
                 else
                 {
@@ -888,13 +853,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             // Walk the planned segment; OnEnemyMoveComplete re-checks adjacency
-            // and attacks if the move landed next to the target.
+            // and attacks (with the planned ability) if the move landed adjacent.
             CombatUnit intendedTarget = plan.Target;
+            AbilitySpec plannedAbility = plan.Ability;
             List<GridCoord> moveSegment = new List<GridCoord>(plan.MovePath);
-            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget));
+            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget, plannedAbility));
         }
 
-        private void OnEnemyMoveComplete(CombatUnit intendedTarget)
+        private void OnEnemyMoveComplete(CombatUnit intendedTarget, AbilitySpec ability)
         {
             hasMovedThisTurn = true;
 
@@ -902,16 +868,22 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 && FootprintAdjacency.AreAdjacent(activeUnit.Footprint, activeUnit.Coord, intendedTarget.Footprint, intendedTarget.Coord))
             {
                 currentAttackTarget = intendedTarget;
-                ResolveEnemyAttackAndEnd();
+                ResolveEnemyAttackAndEnd(ability);
                 return;
             }
 
             EndUnitTurn();
         }
 
-        private void ResolveEnemyAttackAndEnd()
+        // Enemies resolve at a fixed Hit tier (no QTE) but now choose an ability
+        // and pay its MP on use, mirroring the player's spend-on-commit model.
+        private void ResolveEnemyAttackAndEnd(AbilitySpec ability)
         {
-            ResolveAbility(activeUnit, currentAttackTarget, activeUnit.BasicAttack, ExecutionResult.Hit);
+            AbilitySpec chosen = ability ?? activeUnit.BasicAttack;
+            activeUnit.Mp = Mathf.Max(0, activeUnit.Mp - chosen.MpCost);
+            // Area specials (if an enemy ever has one) burst from the target tile.
+            currentAttackCenter = currentAttackTarget.Coord;
+            ResolveAbility(activeUnit, currentAttackTarget, chosen, ExecutionResult.Hit);
             currentAttackTarget = null;
             hasAttackedThisTurn = true;
             EndUnitTurn();

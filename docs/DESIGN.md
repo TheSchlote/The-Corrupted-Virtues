@@ -53,23 +53,29 @@ It is intended to:
 
 Mechanically, this is a **normalized value** in the range **`[0.0 – 1.0]`**, evaluated into outcome tiers.
 
-### Current Execution Windows
+### Execution Windows (swing meter, Normal difficulty)
 
-| Range         | Result  | Multiplier |
-| ------------- | ------- | ---------- |
-| `< 0.20`      | Fumble  | `0.50x`    |
-| `0.20 – 0.40` | Miss    | `0.00x`    |
-| `0.40 – 0.80` | Hit     | `1.00x`    |
-| `0.80 – 0.95` | Divine  | `1.50x`    |
-| `0.95 – 1.00` | LateHit | `1.00x`    |
+| Range          | Result           | Multiplier |
+| -------------- | ---------------- | ---------- |
+| `[0.00, 0.20)` | Fumble           | `0.50x`    |
+| `[0.20, 0.40)` | Miss             | `0.00x`    |
+| `[0.40, 0.85)` | Hit              | `1.00x`    |
+| `[0.85, 0.92]` | Divine           | `1.50x`    |
+| `(0.92, 1.00]` | Miss (overshoot) | `0.00x`    |
 
 #### Notes
 
-* **LateHit exists intentionally**
-
-  * Divine is a tight skill window
-  * Late inputs are forgiven but not rewarded
-* These thresholds are **design-tunable constants**, not final values
+* **LateHit was dropped (M2 slice 1).** Overshooting past Divine is now a
+  **Miss**, not a forgiven Hit — that is what makes Divine a real risk/reward
+  call instead of a free reward for holding late.
+* **Difficulty narrows the Divine window.** `QteDifficulty` (Normal / Hard /
+  Brutal) tightens the Divine band for stronger abilities; the Hit and
+  overshoot-Miss zones grow to fill the gap. Normal is the table above.
+* **Execution is a family, not one widget.** `IExecutionMeter` is the seam;
+  concrete types are **swing meter** (above), **button mash**, **timed press**,
+  and **matching**. Each grades on its own pure calculator but produces the same
+  four tiers and multipliers, so downstream math is identical regardless of type.
+* These thresholds are **design-tunable constants**, not final values.
 
 ### Current Implementation
 
@@ -82,7 +88,12 @@ Mechanically, this is a **normalized value** in the range **`[0.0 – 1.0]`**, e
 * `ExecutionModifiers`
 
   * Maps result → damage multiplier
-* Unity sandbox visualizes Execution zones via slider overlays
+* `ButtonMashCalculator` / `TimedPressCalculator` / `MatchingCalculator`
+
+  * Pure graders for the other QTE types (same four tiers)
+* In-combat meters (`SwingMeterController`, `ButtonMashController`, …) paint the
+  exact zones the grader uses; the standalone sandbox prototype was retired once
+  the combat slice shipped
 
 ---
 
@@ -137,9 +148,16 @@ Damage is **deterministic and inspectable**.
 
 ```text
 PreMitigation = AbilityPower + (AttackStat × Scaling)
-Mitigated     = PreMitigation × (100 / (100 + Defense))
-FinalDamage   = Mitigated × ElementMultiplier × ExecutionMultiplier
+Mitigated     = PreMitigation × (100 / (100 + DefenseStat))
+FinalDamage   = round( Mitigated × ElementMultiplier × ExecutionMultiplier × SituationalProduct ),  min 0
 ```
+
+* `AttackStat` / `DefenseStat` are chosen by ability kind (see below).
+* `SituationalProduct = HighGround × Flanking` — position-derived terms, each
+  `1.0` when absent (see **Situational Modifiers**). They multiply, so high
+  ground *and* a rear hit stack.
+* Rounding is half-away-from-zero; damage floors at `0`.
+* Every term is echoed in `DamageBreakdown` so a hit is explainable line-by-line.
 
 ### Ability Types
 
@@ -152,7 +170,43 @@ FinalDamage   = Mitigated × ElementMultiplier × ExecutionMultiplier
 * **Support**
 
   * Deals no damage
-  * Returns `0` but still reports multipliers
+  * Heal scales off `SpecialAttack` (`HealCalculator`), graded by the same execution tiers
+  * Returns `0` damage but still reports multipliers
+
+### Situational Modifiers
+
+Position-derived terms folded into `SituationalProduct`. One source of truth
+(`CombatSituation`) feeds both the on-screen forecast and the live resolve.
+
+* **High ground:** attacking from a higher elevation than the target = `1.25x`.
+* **Flanking** (single-target only): rear hit `1.50x`, side `1.25x`, front `1.00x`,
+  read from the *target's* facing.
+* **Area attacks** are non-directional: they take high ground but **never**
+  flanking, and hit every opponent in a Chebyshev burst around the target tile
+  (`AreaOfEffect` + `AbilityResolver.ResolveArea`, one breakdown per target).
+* **Multi-tile units** (e.g. the 2×2 Great Beast) must keep their whole
+  footprint on **one** elevation level — they can't straddle an edge, *even in
+  transit* (`ElevationMap.IsUniformUnder` makes straddle anchors impassable in
+  footprint pathfinding). Asset-agnostic by design: a real model never has to
+  bridge a ledge, and the anchor tile's level cleanly defines the unit's
+  elevation for the high-ground term. **Map-design consequence:** such a unit
+  can't cross or mount an elevation edge, so a map must leave it a same-level
+  route to its targets (and a multi-tile unit can't perch on a plateau smaller
+  than its footprint can clear). Revisit if bosses should mount terrain.
+
+### Stat Semantics
+
+The Digimon-Survive block; each stat has exactly one role in the math:
+
+| Stat              | Role                                                            |
+| ----------------- | --------------------------------------------------------------- |
+| `MaxHP`           | Health pool; `0` = death (the Great Beast's pool = Corruption gauge). |
+| `MaxMP`           | Ability resource; spent on commit, no passive regen; basic attack free. |
+| `Attack`          | `AttackStat` for **Physical** abilities.                        |
+| `Defense`         | `DefenseStat` mitigating **Physical** abilities.                |
+| `SpecialAttack`   | `AttackStat` for **Special** abilities; also the heal-scaling stat. |
+| `SpecialDefense`  | `DefenseStat` mitigating **Special** abilities.                 |
+| `Speed`           | Turn order only (`TurnOrder`, lower `Id` breaks ties); **not** a damage term. |
 
 ### Key Design Rule
 
@@ -167,6 +221,14 @@ FinalDamage   = Mitigated × ElementMultiplier × ExecutionMultiplier
 * `DamageBreakdown` (returns intermediate values)
 
 ---
+
+> **Status note (M2).** The sections below are **historical** — they captured the
+> M0–M1 plan when the combat slice was still upcoming. That slice and the
+> M1 / M1.5 / M2 work — squads + Speed turn order, abilities + MP, the QTE-type
+> family, terrain, facing/flanking, the Great Beast boss, AoE, and smarter enemy
+> AI — have all shipped. For live milestone status and scope, see **ROADMAP.md**.
+> The combat **math** above is current; the planning notes below are kept for
+> design history.
 
 ## Current Prototype State
 

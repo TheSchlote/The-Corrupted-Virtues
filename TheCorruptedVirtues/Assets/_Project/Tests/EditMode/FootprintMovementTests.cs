@@ -86,6 +86,26 @@ namespace TheCorruptedVirtues.Tests
 
             Assert.That(path, Is.Empty);
         }
+
+        [Test]
+        public void Approach_NeverStopsStraddlingAnElevationEdge()
+        {
+            var beast = new GridFootprint(2, 2);
+            var target = new GridCoord(0, 0);
+            var blocked = new GridOccupancy();
+            blocked.Add(target);
+            // A lone raised tile makes every 2x2 anchor that covers it a straddle.
+            var elevation = new ElevationMap();
+            elevation.SetLevel(new GridCoord(3, 3), 1);
+
+            var path = GridPathfinderBfs.FindFootprintApproach(new GridCoord(5, 5), beast, target, blocked, Board, elevation);
+
+            Assert.That(path, Is.Not.Empty);
+            foreach (GridCoord anchor in path)
+            {
+                Assert.That(elevation.IsUniformUnder(beast, anchor), Is.True);
+            }
+        }
     }
 
     public class MultiTilePlannerTests
@@ -143,6 +163,23 @@ namespace TheCorruptedVirtues.Tests
 
             Assert.That(plan.HasMove, Is.False);
             Assert.That(plan.AttackAfterMove, Is.True);
+        }
+
+        [Test]
+        public void Plan_MobileBeast_WithElevation_StopsOnUniformAnchor()
+        {
+            CombatUnit beast = BattleTestFactory.Unit(1, Faction.Enemy, new GridCoord(5, 5), moveRange: 12);
+            beast.Footprint = new GridFootprint(2, 2);
+            CombatUnit foe = BattleTestFactory.Unit(2, Faction.Player, new GridCoord(0, 0));
+            BattleState state = StateWith(beast, foe);
+            var elevation = new ElevationMap();
+            elevation.SetLevel(new GridCoord(2, 2), 1); // a straddle hazard near the approach
+
+            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(beast, state, Board, elevation);
+
+            Assert.That(plan.HasMove, Is.True);
+            GridCoord finalAnchor = plan.MovePath[plan.MovePath.Count - 1];
+            Assert.That(elevation.IsUniformUnder(beast.Footprint, finalAnchor), Is.True);
         }
     }
 }

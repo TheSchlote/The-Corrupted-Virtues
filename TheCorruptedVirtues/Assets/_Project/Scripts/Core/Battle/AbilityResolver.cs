@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using TheCorruptedVirtues.Combat;
+using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Battle
 {
@@ -76,6 +78,26 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 targetHp: target.Hp,
                 targetMaxHp: target.MaxHp,
                 targetDied: target.Hp <= 0);
+        }
+
+        // Apply one area attack to every target caught in the burst, returning
+        // an outcome per target (M2 AoE slice). Each target takes the attacker's
+        // high ground but no flanking (area attacks are non-directional —
+        // CombatSituation.ForArea), so every hit is explainable the same way.
+        // The caller has already gathered the targets (AreaOfEffect.CollectTargets).
+        public static IReadOnlyList<AbilityOutcome> ResolveArea(
+            CombatUnit attacker, IReadOnlyList<CombatUnit> targets, AbilitySpec ability,
+            ExecutionResult execution, ElevationMap elevation)
+        {
+            List<AbilityOutcome> outcomes = new List<AbilityOutcome>(targets.Count);
+            for (int i = 0; i < targets.Count; i++)
+            {
+                CombatUnit target = targets[i];
+                SituationalModifiers mods = CombatSituation.ForArea(attacker, target, elevation);
+                outcomes.Add(Resolve(attacker, target, ability, execution, mods));
+            }
+
+            return outcomes;
         }
     }
 }
