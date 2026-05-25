@@ -13,13 +13,15 @@ namespace TheCorruptedVirtues.Tests
     // orchestrator otherwise only exercises under manual play.
     public class BattleSimulatorTests
     {
-        // Matches GridPresenter's default playfield; EncounterLibrary places all
-        // units within it. Flat (null elevation) — terrain isn't encounter data yet.
+        // Default 8x8 playfield for the synthetic RunUnitTurn test below. Library
+        // encounters now run on their own map's bounds/elevation/obstacles —
+        // terrain is encounter data, so the simulator is fed the real battlefield.
         private static readonly GridBounds Bounds = new GridBounds(8, 8);
 
         private static BattleState RosterState(EncounterSpec encounter)
         {
             BattleState state = new BattleState();
+            state.SetObstacles(encounter.Map.BuildObstacleMap());
             state.SetRoster(encounter.BuildRoster());
             return state;
         }
@@ -30,7 +32,7 @@ namespace TheCorruptedVirtues.Tests
             foreach (EncounterSpec encounter in EncounterLibrary.All())
             {
                 BattleState state = RosterState(encounter);
-                BattleSimulator sim = new BattleSimulator(state, Bounds);
+                BattleSimulator sim = new BattleSimulator(state, encounter.Map.Bounds, encounter.Map.BuildElevationMap());
 
                 bool decided = sim.RunToCompletion(maxTurns: 1000, out Faction winner);
 
@@ -47,7 +49,7 @@ namespace TheCorruptedVirtues.Tests
             foreach (EncounterSpec encounter in EncounterLibrary.All())
             {
                 BattleState state = RosterState(encounter);
-                new BattleSimulator(state, Bounds).RunToCompletion(maxTurns: 1000, out _);
+                new BattleSimulator(state, encounter.Map.Bounds, encounter.Map.BuildElevationMap()).RunToCompletion(maxTurns: 1000, out _);
 
                 foreach (CombatUnit unit in state.Units)
                 {
@@ -64,10 +66,10 @@ namespace TheCorruptedVirtues.Tests
             EncounterSpec encounter = EncounterLibrary.All()[0];
 
             BattleState a = RosterState(encounter);
-            bool decidedA = new BattleSimulator(a, Bounds).RunToCompletion(1000, out Faction winnerA);
+            bool decidedA = new BattleSimulator(a, encounter.Map.Bounds, encounter.Map.BuildElevationMap()).RunToCompletion(1000, out Faction winnerA);
 
             BattleState b = RosterState(encounter);
-            bool decidedB = new BattleSimulator(b, Bounds).RunToCompletion(1000, out Faction winnerB);
+            bool decidedB = new BattleSimulator(b, encounter.Map.Bounds, encounter.Map.BuildElevationMap()).RunToCompletion(1000, out Faction winnerB);
 
             Assert.AreEqual(decidedA, decidedB);
             Assert.AreEqual(winnerA, winnerB, "Same encounter produced different winners — the loop is non-deterministic.");
@@ -85,7 +87,7 @@ namespace TheCorruptedVirtues.Tests
             // that the turn cap guards a genuine stalemate rather than hanging.
             EncounterSpec encounter = EncounterLibrary.All()[0];
             BattleState state = RosterState(encounter);
-            BattleSimulator sim = new BattleSimulator(state, Bounds, elevation: null, execution: ExecutionResult.Miss);
+            BattleSimulator sim = new BattleSimulator(state, encounter.Map.Bounds, encounter.Map.BuildElevationMap(), ExecutionResult.Miss);
 
             bool decided = sim.RunToCompletion(maxTurns: 200, out _);
 
