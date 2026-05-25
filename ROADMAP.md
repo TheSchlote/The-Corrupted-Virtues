@@ -163,10 +163,10 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] 32 new EditMode tests pinning the extracted logic (**109 total, all green**)
 
 - [x] Abilities + MP cost; physical/special/support kinds; **risk/reward gradient** (stronger moves = harder QTE) _(slice 2)_
-- [ ] **Pulled forward from M3:** grid elevation/terrain (high ground bonus). Identified in the M1 playtest as a fun-prerequisite — needed in M2 so positioning becomes a real choice.
-- [ ] **Facing / flanking:** unit facing + back/side attack modifiers; facing arrow indicator. (New from M1 playtest — direct Gladius ask.)
+- [x] **Pulled forward from M3:** grid elevation/terrain — high ground = ×1.25 damage; folded into the `SituationalModifiers` seam + shown in the forecast. _(shipped on `feature/m2-terrain-elevation`, 2026-05-24)_
+- [x] **Facing / flanking:** auto-facing (face last step / face target on attack) + back ×1.5 / side ×1.25 / front ×1.0 + facing arrow. Single-target attacks are directional; AoE-exempt via `AbilitySpec.IsAreaOfEffect`. _(shipped on `feature/m2-facing-flanking`, 2026-05-24)_
 - [ ] Win / loss / battle-end flow; basic enemy AI _(terminal state landed in M1; AI + multi-unit flow remains)_
-- [ ] **Great Beast boss:** a 2×2 unit + **Corruption gauge** (purify-not-kill win condition)
+- [x] **Great Beast boss:** mobile 2×2 unit (footprint pathfinding + adjacency) + **Corruption gauge** (its HP pool; purify-not-kill → PURIFIED banner) + purple corruption aura. _(shipped on `feature/m2-great-beast`, 2026-05-24; playtested — "barely won")_
 - [x] Additional QTE types — framework + **button mash** _(slice 2)_
 - [ ] More QTE types: timed press, matching _(later slice)_
 - [x] Decompose god-controller → pure-C# `Battle` systems: `TurnSystem` + `AbilityResolver` (the "AttackSystem") + `BattleState`/`EnemyTurnPlanner`/`MovementRules`; HUD was already split into presenters _(slice 3)_
@@ -196,6 +196,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 
 **Systems**
 - [ ] Unit/ability data as ScriptableObjects (deferred until structure is proven)
+- [ ] **Varied battle maps** — handcrafted terrain/elevation layouts, obstacles, sizes & encounter variety (currently one hardcoded 8×8 map + central plateau). Likely wants map/encounter data so maps aren't hardcoded. _(playtest ask, 2026-05-24)_
 - [ ] Command pattern for actions → enables **Undo Move** + future netcode ("every action is a Request")
 - [ ] Damage-log / combat-report panel (spectator-clarity pillar)
 
