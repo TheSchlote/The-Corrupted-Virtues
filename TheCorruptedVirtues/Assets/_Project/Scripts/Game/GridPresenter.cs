@@ -10,16 +10,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private int height = 8;
         [SerializeField] private float cellSize = 1.0f;
         [SerializeField] private Vector3 origin = Vector3.zero;
-        [SerializeField] private float unitY = 1.0f;
         [SerializeField] private float cursorY = 0.05f;
         // World height added per elevation level. Terrain is otherwise flat.
         [SerializeField] private float cellHeight = 0.5f;
 
-        // Set by the orchestrator at build time; null = flat ground.
+        // Set by the orchestrator at map-load time; null = flat / open.
         private ElevationMap elevation;
+        private ObstacleMap obstacles;
 
         public GridBounds Bounds => new GridBounds(width, height);
-        public float UnitY => unitY;
         public float CursorY => cursorY;
         public float CellSize => cellSize;
         public float CellHeight => cellHeight;
@@ -32,6 +31,25 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public int LevelAt(GridCoord coord)
         {
             return elevation != null ? elevation.GetLevel(coord) : 0;
+        }
+
+        // Grid dimensions are data now: a map sets them at load time so
+        // encounters can vary in size. The serialized width/height are just the
+        // inspector default for the first load.
+        public void SetBounds(int newWidth, int newHeight)
+        {
+            width = newWidth;
+            height = newHeight;
+        }
+
+        public void SetObstacles(ObstacleMap map)
+        {
+            obstacles = map;
+        }
+
+        public bool IsObstacle(GridCoord coord)
+        {
+            return obstacles != null && obstacles.IsBlocked(coord);
         }
 
         // The world-space Y added to a tile because of its elevation. Folded

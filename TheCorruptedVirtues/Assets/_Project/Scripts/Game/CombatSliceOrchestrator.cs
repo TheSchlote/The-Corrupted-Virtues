@@ -34,7 +34,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private GridPresenter grid;
         private ElevationMap elevation;
         // The roster is data now (EncounterLibrary). F1 cycles this list and the
-        // index wraps; index 0 loads at startup. Terrain stays shared (BuildTerrain).
+        // index wraps; index 0 loads at startup. Each encounter carries its own
+        // BattleMapSpec, applied per load (ApplyMap).
         private IReadOnlyList<EncounterSpec> encounters;
         private int encounterIndex;
         private TacticalCursorController cursor;
@@ -85,43 +86,44 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             encounters = EncounterLibrary.All();
             encounterIndex = 0;
             LoadCurrentEncounter();
-            BuildTerrain();
-
-            events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
 
             started = true;
             ResetSliceState();
         }
 
         // Build (or rebuild) the battle from the current encounter's data —
-        // fresh CombatUnits via EncounterSpec.BuildRoster. Terrain is built once
-        // in Initialize and shared across encounters (not per-encounter yet).
+        // fresh CombatUnits via EncounterSpec.BuildRoster, and the encounter's
+        // own battlefield via ApplyMap. Raises GridBuilt so the view rebuilds
+        // its terrain to match (terrain is per-encounter now, not shared).
         private void LoadCurrentEncounter()
         {
+            EncounterSpec encounter = encounters[encounterIndex];
+
             battle = new BattleState();
             turns = new TurnSystem(battle);
-            battle.SetRoster(encounters[encounterIndex].BuildRoster());
+
+            ApplyMap(encounter.Map);
+            battle.SetRoster(encounter.BuildRoster());
+
+            events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
         }
 
-        // M2 terrain slice: a small high-ground plateau in the contested mid-
-        // field. Both squads start equidistant from it, so taking the high
-        // ground is a real opening choice. Level 1 = one step up (a ×1.25 hit
-        // against a lower target). Shared across encounters for now; per-encounter
-        // terrain data comes with varied maps.
-        private void BuildTerrain()
+        // Apply one encounter's battlefield: grid dimensions, raised tiles, and
+        // impassable obstacles. Replaces the old hardcoded BuildTerrain — each
+        // encounter now carries its own BattleMapSpec. The elevation field is
+        // kept current for the combat high-ground term (CombatSituation reads
+        // it); obstacles go both to the battle (folded into the pathfinding
+        // occupancy) and to the grid view (rendered as blocks).
+        private void ApplyMap(BattleMapSpec map)
         {
-            elevation = new ElevationMap();
-            GridCoord[] plateau =
-            {
-                new GridCoord(3, 3), new GridCoord(4, 3),
-                new GridCoord(3, 4), new GridCoord(4, 4),
-            };
-            for (int i = 0; i < plateau.Length; i++)
-            {
-                elevation.SetLevel(plateau[i], 1);
-            }
+            grid.SetBounds(map.Width, map.Height);
 
+            elevation = map.BuildElevationMap();
             grid.SetElevation(elevation);
+
+            ObstacleMap obstacles = map.BuildObstacleMap();
+            grid.SetObstacles(obstacles);
+            battle.SetObstacles(obstacles);
         }
 
         private void Update()

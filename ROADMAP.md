@@ -197,7 +197,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 
 **Systems**
 - [ ] Unit/ability data as ScriptableObjects (deferred until structure is proven)
-- [ ] **Varied battle maps** — handcrafted terrain/elevation layouts, obstacles, sizes & encounter variety (currently one hardcoded 8×8 map + central plateau). Likely wants map/encounter data so maps aren't hardcoded. _(playtest ask, 2026-05-24)_
+- [x] **Varied battle maps** — maps as data (`BattleMapSpec`/`MapLibrary`, mirroring the encounter seam); per-encounter loading; **impassable obstacles** (a pure `ObstacleMap` folded into the pathfinding occupancy — no pathfinder signature change); variable grid sizes + obstacle rendering + per-encounter terrain rebuild. Two maps: Plateau (8×8, boss) + Ruined Hall (10×8, central wall w/ chokepoints + a rise). Also grounded unit views by mesh half-height (cube enemies had floated). _(shipped on `feature/m3-varied-maps`, 2026-05-25)_ Follow-ups: more maps; a beast-with-obstacles map (2-wide lanes).
 - [ ] Command pattern for actions → enables **Undo Move** + future netcode ("every action is a Request")
 - [ ] Damage-log / combat-report panel (spectator-clarity pillar)
 

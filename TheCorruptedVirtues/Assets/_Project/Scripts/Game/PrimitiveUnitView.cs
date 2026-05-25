@@ -29,12 +29,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private int cachedCurrentHp;
         private int cachedMaxHp;
         private bool isGreatBeast;
+        private float groundOffset;
 
         public void Configure(Renderer renderer, Color color, bool greatBeast = false)
         {
             primitiveRenderer = renderer;
             baseColor = color;
             isGreatBeast = greatBeast;
+            groundOffset = HalfHeightOf(renderer);
             ViewMaterials.SetColor(primitiveRenderer, color);
             BuildHpBar();
             BuildActiveIndicator();
@@ -47,13 +49,26 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         public void Warp(Vector3 world)
         {
-            target = world;
-            transform.position = world;
+            target = world + new Vector3(0f, groundOffset, 0f);
+            transform.position = target;
         }
 
         public void MoveTo(Vector3 world)
         {
-            target = world;
+            target = world + new Vector3(0f, groundOffset, 0f);
+        }
+
+        // Half the body's world-space height, so the view can lift itself to
+        // rest its base on the tile surface it is positioned at. Mesh-based, so
+        // it is correct for any primitive at any scale (a 2-tall capsule, a
+        // 1-tall cube, a scaled multi-tile boss) with no per-shape constant.
+        private static float HalfHeightOf(Renderer renderer)
+        {
+            MeshFilter meshFilter = renderer.GetComponent<MeshFilter>();
+            float meshHalfHeight = meshFilter != null && meshFilter.sharedMesh != null
+                ? meshFilter.sharedMesh.bounds.extents.y
+                : 0.5f;
+            return meshHalfHeight * renderer.transform.lossyScale.y;
         }
 
         public void PlayHitFlash()
