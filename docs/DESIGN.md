@@ -185,10 +185,14 @@ Position-derived terms folded into `SituationalProduct`. One source of truth
   flanking, and hit every opponent in a Chebyshev burst around the target tile
   (`AreaOfEffect` + `AbilityResolver.ResolveArea`, one breakdown per target).
 * **Multi-tile units** (e.g. the 2×2 Great Beast) must keep their whole
-  footprint on **one** elevation level — they can't stop straddling an edge
-  (`ElevationMap.IsUniformUnder` gates footprint pathfinding). Asset-agnostic by
-  design: a real model never has to bridge a ledge, and the anchor tile's level
-  cleanly defines the unit's elevation for the high-ground term.
+  footprint on **one** elevation level — they can't straddle an edge, *even in
+  transit* (`ElevationMap.IsUniformUnder` makes straddle anchors impassable in
+  footprint pathfinding). Asset-agnostic by design: a real model never has to
+  bridge a ledge, and the anchor tile's level cleanly defines the unit's
+  elevation for the high-ground term. **Map-design consequence:** such a unit
+  can't cross or mount an elevation edge, so a map must leave it a same-level
+  route to its targets (and a multi-tile unit can't perch on a plateau smaller
+  than its footprint can clear). Revisit if bosses should mount terrain.
 
 ### Stat Semantics
 

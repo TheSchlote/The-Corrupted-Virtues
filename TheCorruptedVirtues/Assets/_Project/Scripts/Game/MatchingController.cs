@@ -38,7 +38,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private Vector2Int[] sequence = new Vector2Int[0];
         private int matchedIndex;
         private float timeLeft;
-        private bool awaitingRelease;
+        // The cardinal currently held/consumed; a new press registers only when
+        // this changes (edge-on-change), so rolling between directions works and
+        // a held direction doesn't repeat.
+        private Vector2Int lastCardinal;
         private bool isInitialized;
         private Coroutine hideLoop;
 
@@ -79,9 +82,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             matchedIndex = 0;
             timeLeft = windowSeconds;
             IsRunning = true;
-            // Ignore a direction the player is already holding from before the
-            // QTE: require a fresh press.
-            awaitingRelease = GameInput.Current.MoveAxis != Vector2Int.zero;
+            // Seed with whatever direction is already held so it isn't counted
+            // as a fresh press: a new input only registers when the cardinal
+            // changes.
+            lastCardinal = ToCleanCardinal(GameInput.Current.MoveAxis);
 
             Show();
             RenderSequence();
@@ -103,28 +107,31 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             timeLeft -= Time.deltaTime;
 
-            Vector2Int axis = GameInput.Current.MoveAxis;
-            if (axis == Vector2Int.zero)
+            // Reduce the raw axis to a clean cardinal; a diagonal (two axes held
+            // at once) counts as no input so it can't be misread as the wrong
+            // direction. Register on the cardinal CHANGING rather than on a full
+            // release to neutral, so rolling straight from one direction to the
+            // next still registers each press.
+            Vector2Int cardinal = ToCleanCardinal(GameInput.Current.MoveAxis);
+            if (cardinal != lastCardinal)
             {
-                awaitingRelease = false;
-            }
-            else if (!awaitingRelease)
-            {
-                awaitingRelease = true;
-                Vector2Int pressed = ToCardinal(axis);
-                if (pressed == sequence[matchedIndex])
+                lastCardinal = cardinal;
+                if (cardinal != Vector2Int.zero)
                 {
-                    matchedIndex++;
-                    RenderSequence();
-                    if (matchedIndex >= sequence.Length)
+                    if (cardinal == sequence[matchedIndex])
                     {
+                        matchedIndex++;
+                        RenderSequence();
+                        if (matchedIndex >= sequence.Length)
+                        {
+                            return Grade(out result, out multiplier);
+                        }
+                    }
+                    else
+                    {
+                        // Wrong input ends the run.
                         return Grade(out result, out multiplier);
                     }
-                }
-                else
-                {
-                    // Wrong input ends the run.
-                    return Grade(out result, out multiplier);
                 }
             }
 
@@ -164,16 +171,22 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return true;
         }
 
-        // Reduce a raw move axis to a single cardinal (dominant component;
-        // ties prefer horizontal). Matches the four prompt directions.
-        private static Vector2Int ToCardinal(Vector2Int axis)
+        // A clean cardinal, or zero. Exactly one axis nonzero -> that cardinal;
+        // zero OR a diagonal (both axes nonzero) -> zero, so an ambiguous
+        // diagonal is treated as "no input" rather than forced to one direction.
+        private static Vector2Int ToCleanCardinal(Vector2Int axis)
         {
-            if (Mathf.Abs(axis.x) >= Mathf.Abs(axis.y))
+            if (axis.x != 0 && axis.y == 0)
             {
                 return new Vector2Int(axis.x > 0 ? 1 : -1, 0);
             }
 
-            return new Vector2Int(0, axis.y > 0 ? 1 : -1);
+            if (axis.y != 0 && axis.x == 0)
+            {
+                return new Vector2Int(0, axis.y > 0 ? 1 : -1);
+            }
+
+            return Vector2Int.zero;
         }
 
         private void RenderSequence()

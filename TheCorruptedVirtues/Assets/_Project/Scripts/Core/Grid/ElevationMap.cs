@@ -16,10 +16,12 @@ namespace TheCorruptedVirtues.CombatSlice.Core
         }
 
         // True if every tile a footprint covers at this anchor shares one level.
-        // Multi-tile units must stand on uniform ground — they can't stop
-        // straddling an elevation edge (keeps placement, the high-ground term,
-        // and any future model flat-footed on one level). 1x1 footprints are
-        // trivially uniform, so this never restricts single-tile units.
+        // Multi-tile units must stand on uniform ground — they can't straddle an
+        // elevation edge (keeps placement, the high-ground term, and any future
+        // model flat-footed on one level). The footprint pathfinder treats
+        // non-uniform anchors as impassable, so this is enforced in transit too,
+        // not only at rest. 1x1 footprints are trivially uniform, so single-tile
+        // units are never restricted.
         public bool IsUniformUnder(GridFootprint footprint, GridCoord anchor)
         {
             int anchorLevel = GetLevel(anchor);

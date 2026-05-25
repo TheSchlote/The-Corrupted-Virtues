@@ -111,7 +111,11 @@ namespace TheCorruptedVirtues.CombatSlice.Core
                         continue;
                     }
 
-                    // Can't stop with the footprint straddling an elevation edge.
+                    // A multi-tile unit never occupies a straddling footprint —
+                    // not even in transit — so straddle anchors are impassable,
+                    // not merely invalid stopping points. Consequence: such a
+                    // unit can't cross or mount an elevation edge, so a map must
+                    // leave it a same-level route to its targets.
                     if (elevation != null && !elevation.IsUniformUnder(footprint, next))
                     {
                         continue;
