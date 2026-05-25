@@ -133,11 +133,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
                 new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
                 new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
+                new AbilitySpec("Lance of Dawn", AbilityKind.Special, ElementType.Light, power: 26, scaling: 1.3f, mpCost: 12, qteType: QteType.TimedPress, qteDifficulty: QteDifficulty.Hard),
             }));
             roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
             {
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
+                new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
             }));
 
             roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
@@ -172,11 +174,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
                 new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
                 new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
+                new AbilitySpec("Lance of Dawn", AbilityKind.Special, ElementType.Light, power: 26, scaling: 1.3f, mpCost: 12, qteType: QteType.TimedPress, qteDifficulty: QteDifficulty.Hard),
             }));
             roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
             {
                 new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
                 new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
+                new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
             }));
 
             // The corrupted Virtue: a slow, hard-hitting 2x2 with a deep
@@ -436,6 +440,23 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return meters.TryGetValue(type, out IExecutionMeter meter) && meter != null
                 ? meter.DisplayName
                 : "QTE";
+        }
+
+        // The on-screen prompt for the QTE the player is about to perform.
+        // Each type drives a different interaction, so each gets its own verb.
+        private static string QteHint(AbilitySpec ability)
+        {
+            switch (ability.QteType)
+            {
+                case QteType.ButtonMash:
+                    return "Mash Confirm!";
+                case QteType.TimedPress:
+                    return "Confirm: press on the target!";
+                case QteType.Matching:
+                    return "Repeat the sequence (arrows / D-pad)!";
+                default:
+                    return ability.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing";
+            }
         }
 
         private void UpdatePreview()
@@ -705,9 +726,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
             currentMeter.Begin(currentAbility.QteDifficulty);
 
-            string hint = currentAbility.QteType == QteType.ButtonMash
-                ? "Mash Confirm!"
-                : (currentAbility.Kind == AbilityKind.Support ? "Confirm: Stop (Heal)" : "Confirm: Stop Swing");
+            string hint = QteHint(currentAbility);
             events.RaiseSelectionChanged(new SelectionChangedEvent(cursor.CursorCoord, SelectionState.Neutral, hint));
         }
 
