@@ -3,6 +3,7 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using TheCorruptedVirtues.Combat;
+using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.CombatSlice.Unity
 {
@@ -38,10 +39,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private Vector2Int[] sequence = new Vector2Int[0];
         private int matchedIndex;
         private float timeLeft;
-        // The cardinal currently held/consumed; a new press registers only when
-        // this changes (edge-on-change), so rolling between directions works and
-        // a held direction doesn't repeat.
-        private Vector2Int lastCardinal;
+        // The cardinal currently held/consumed (CardinalInput tracks it every
+        // frame); a new press registers only when this changes (edge-on-change),
+        // so rolling between directions works and a held direction doesn't repeat.
+        private GridCoord lastCardinal;
         private bool isInitialized;
         private Coroutine hideLoop;
 
@@ -85,7 +86,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             // Seed with whatever direction is already held so it isn't counted
             // as a fresh press: a new input only registers when the cardinal
             // changes.
-            lastCardinal = ToCleanCardinal(GameInput.Current.MoveAxis);
+            Vector2Int held = GameInput.Current.MoveAxis;
+            lastCardinal = CardinalInput.ToCardinal(held.x, held.y);
 
             Show();
             RenderSequence();
@@ -107,31 +109,31 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             timeLeft -= Time.deltaTime;
 
-            // Reduce the raw axis to a clean cardinal; a diagonal (two axes held
-            // at once) counts as no input so it can't be misread as the wrong
-            // direction. Register on the cardinal CHANGING rather than on a full
-            // release to neutral, so rolling straight from one direction to the
-            // next still registers each press.
-            Vector2Int cardinal = ToCleanCardinal(GameInput.Current.MoveAxis);
-            if (cardinal != lastCardinal)
+            // Clean-cardinal reduction + edge-on-change rule live in the pure,
+            // tested CardinalInput (diagonals reduce to no-input; rolling between
+            // directions registers each; a held direction doesn't repeat). Track
+            // lastCardinal every frame — including releases to neutral — so a
+            // re-press of the same direction registers again.
+            Vector2Int axis = GameInput.Current.MoveAxis;
+            GridCoord cardinal = CardinalInput.ToCardinal(axis.x, axis.y);
+            bool registers = CardinalInput.RegistersPress(cardinal, lastCardinal);
+            lastCardinal = cardinal;
+            if (registers)
             {
-                lastCardinal = cardinal;
-                if (cardinal != Vector2Int.zero)
+                Vector2Int expected = sequence[matchedIndex];
+                if (cardinal.X == expected.x && cardinal.Y == expected.y)
                 {
-                    if (cardinal == sequence[matchedIndex])
+                    matchedIndex++;
+                    RenderSequence();
+                    if (matchedIndex >= sequence.Length)
                     {
-                        matchedIndex++;
-                        RenderSequence();
-                        if (matchedIndex >= sequence.Length)
-                        {
-                            return Grade(out result, out multiplier);
-                        }
-                    }
-                    else
-                    {
-                        // Wrong input ends the run.
                         return Grade(out result, out multiplier);
                     }
+                }
+                else
+                {
+                    // Wrong input ends the run.
+                    return Grade(out result, out multiplier);
                 }
             }
 
@@ -169,24 +171,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             StartHideAfterStop();
             return true;
-        }
-
-        // A clean cardinal, or zero. Exactly one axis nonzero -> that cardinal;
-        // zero OR a diagonal (both axes nonzero) -> zero, so an ambiguous
-        // diagonal is treated as "no input" rather than forced to one direction.
-        private static Vector2Int ToCleanCardinal(Vector2Int axis)
-        {
-            if (axis.x != 0 && axis.y == 0)
-            {
-                return new Vector2Int(axis.x > 0 ? 1 : -1, 0);
-            }
-
-            if (axis.y != 0 && axis.x == 0)
-            {
-                return new Vector2Int(0, axis.y > 0 ? 1 : -1);
-            }
-
-            return Vector2Int.zero;
         }
 
         private void RenderSequence()
