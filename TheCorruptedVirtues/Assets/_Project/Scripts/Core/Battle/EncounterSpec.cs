@@ -9,6 +9,11 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
     // carry later (data is deferred to SOs per the roadmap, but the seam is here).
     public sealed class EncounterUnitSpec
     {
+        // Standard move range when a spec doesn't override it. Was MakeUnit's
+        // constant, then EncounterSpec's; now a per-unit default so a fast scout
+        // and a slow tank can differ in reach.
+        public const int DefaultMoveRange = 4;
+
         public readonly int Id;
         public readonly Faction Faction;
         public readonly GridCoord Coord;
@@ -17,6 +22,8 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public readonly IReadOnlyList<AbilitySpec> Abilities;
         public readonly GridFootprint Footprint;
         public readonly bool IsGreatBeast;
+        public readonly int MoveRange;
+        public readonly AiBehavior AiBehavior;
 
         public EncounterUnitSpec(
             int id,
@@ -26,7 +33,9 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             ElementType element,
             IReadOnlyList<AbilitySpec> abilities,
             GridFootprint footprint = default,
-            bool isGreatBeast = false)
+            bool isGreatBeast = false,
+            int moveRange = DefaultMoveRange,
+            AiBehavior aiBehavior = AiBehavior.Aggressive)
         {
             Id = id;
             Faction = faction;
@@ -37,6 +46,8 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             // default(GridFootprint) is (0,0); normalise to 1x1 for normal units.
             Footprint = footprint.Width < 1 || footprint.Height < 1 ? GridFootprint.Single : footprint;
             IsGreatBeast = isGreatBeast;
+            MoveRange = moveRange < 1 ? DefaultMoveRange : moveRange;
+            AiBehavior = aiBehavior;
         }
     }
 
@@ -45,9 +56,6 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
     // so a new encounter is "load data → build roster" rather than a hardcoded method.
     public sealed class EncounterSpec
     {
-        // Standard move range for a unit this milestone (was MakeUnit's constant).
-        private const int DefaultMoveRange = 4;
-
         public readonly string Name;
         public readonly IReadOnlyList<EncounterUnitSpec> Units;
 
@@ -88,7 +96,8 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 // Fresh list per build so rebuilt rosters never alias one another.
                 Abilities = new List<AbilitySpec>(spec.Abilities),
                 SelectedAbilityIndex = 0,
-                MoveRange = DefaultMoveRange
+                MoveRange = spec.MoveRange,
+                AiBehavior = spec.AiBehavior
             };
             unit.Hp = unit.MaxHp;
             unit.Mp = unit.MaxMp;
