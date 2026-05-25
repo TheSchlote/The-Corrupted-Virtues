@@ -133,7 +133,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 
 - [x] **Re-playtest** the second iteration — signed off 2026-05-21. Remaining wants (unit animations, formalized UI system) deferred to M3+ because both are asset-coupled and wait for the art decision.
 
-### M2 — Real Combat _(depth, still placeholders)_
+### M2 — Real Combat _(depth, still placeholders)_ ✅ **complete — tagged `v0.2.0` (2026-05-25)**
 
 **Slice 1 — Squads + Speed-based turn order + turn-order UI** ✅ _shipped on `feature/m2-squads-turn-order` (2026-05-21)_
 - [x] 2v2 squads with four distinct elements (Player: Light + Fire / Enemy: Dark + Water — surfaces 4 matchups in one fight)
@@ -172,7 +172,7 @@ Full bible: [docs/LORE.md](docs/LORE.md) · Campaign spine: [docs/STORY.md](docs
 - [x] More QTE types: **timed press + matching** — new `IExecutionMeter` types + pure graders (`TimedPressCalculator` / `MatchingCalculator`); matching reads directional input. Lance of Dawn / Cinder Combo added. _(shipped on `feature/m2-finish`, 2026-05-24)_
 - [x] Decompose god-controller → pure-C# `Battle` systems: `TurnSystem` + `AbilityResolver` (the "AttackSystem") + `BattleState`/`EnemyTurnPlanner`/`MovementRules`; HUD was already split into presenters _(slice 3)_
 - [x] Digimon-Survive stat-semantics pass — **spec alignment**: `docs/DESIGN.md` brought in line with the shipped math (execution tiers, situational terms) + a canonical stat-role table; `CombatStats` documented. No balance change — constants kept at playtested values. _(shipped on `feature/m2-finish`, 2026-05-24)_
-- [ ] → tag `v0.2.0` _(all M2 build items shipped, 202 EditMode tests green; ready to tag after a playtest)_
+- [x] → tagged `v0.2.0` (2026-05-25) — annotated tag on the M2 merge `391fcd9`; 202 EditMode tests green at tag time, playtested.
 
 ### M3+ — Campaign _(after the loop is provably fun)_
 - [ ] Region → boss template ([docs/STORY.md](docs/STORY.md)): traverse a region, then a
