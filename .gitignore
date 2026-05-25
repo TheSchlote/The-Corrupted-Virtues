@@ -91,6 +91,10 @@ InitTestScene*.unity*
 .consulo/
 ExportedObj/
 
+# --- Claude Code (local agent state; shared config like .claude/settings.json stays trackable) ---
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+
 # --- OS noise ---
 .DS_Store
 .AppleDouble
