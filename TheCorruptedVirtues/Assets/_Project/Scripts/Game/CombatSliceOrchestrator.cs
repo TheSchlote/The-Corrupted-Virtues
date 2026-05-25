@@ -150,10 +150,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
             {
                 new AbilitySpec("Corruption Strike", AbilityKind.Physical, ElementType.Dark, power: 10, scaling: 1.0f),
+                new AbilitySpec("Dark Pulse", AbilityKind.Special, ElementType.Dark, power: 20, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
             }));
             roster.Add(MakeUnit(4, Faction.Enemy, new GridCoord(6, 4), waterSturdy, ElementType.Water, new List<AbilitySpec>
             {
                 new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
+                new AbilitySpec("Riptide", AbilityKind.Special, ElementType.Water, power: 18, scaling: 1.2f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
             }));
 
             battle.SetRoster(roster);
@@ -961,7 +963,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 if (plan.AttackAfterMove)
                 {
                     currentAttackTarget = plan.Target;
-                    ResolveEnemyAttackAndEnd();
+                    ResolveEnemyAttackAndEnd(plan.Ability);
                 }
                 else
                 {
@@ -971,13 +973,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             // Walk the planned segment; OnEnemyMoveComplete re-checks adjacency
-            // and attacks if the move landed next to the target.
+            // and attacks (with the planned ability) if the move landed adjacent.
             CombatUnit intendedTarget = plan.Target;
+            AbilitySpec plannedAbility = plan.Ability;
             List<GridCoord> moveSegment = new List<GridCoord>(plan.MovePath);
-            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget));
+            BeginMove(moveSegment, () => OnEnemyMoveComplete(intendedTarget, plannedAbility));
         }
 
-        private void OnEnemyMoveComplete(CombatUnit intendedTarget)
+        private void OnEnemyMoveComplete(CombatUnit intendedTarget, AbilitySpec ability)
         {
             hasMovedThisTurn = true;
 
@@ -985,16 +988,22 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 && FootprintAdjacency.AreAdjacent(activeUnit.Footprint, activeUnit.Coord, intendedTarget.Footprint, intendedTarget.Coord))
             {
                 currentAttackTarget = intendedTarget;
-                ResolveEnemyAttackAndEnd();
+                ResolveEnemyAttackAndEnd(ability);
                 return;
             }
 
             EndUnitTurn();
         }
 
-        private void ResolveEnemyAttackAndEnd()
+        // Enemies resolve at a fixed Hit tier (no QTE) but now choose an ability
+        // and pay its MP on use, mirroring the player's spend-on-commit model.
+        private void ResolveEnemyAttackAndEnd(AbilitySpec ability)
         {
-            ResolveAbility(activeUnit, currentAttackTarget, activeUnit.BasicAttack, ExecutionResult.Hit);
+            AbilitySpec chosen = ability ?? activeUnit.BasicAttack;
+            activeUnit.Mp = Mathf.Max(0, activeUnit.Mp - chosen.MpCost);
+            // Area specials (if an enemy ever has one) burst from the target tile.
+            currentAttackCenter = currentAttackTarget.Coord;
+            ResolveAbility(activeUnit, currentAttackTarget, chosen, ExecutionResult.Hit);
             currentAttackTarget = null;
             hasAttackedThisTurn = true;
             EndUnitTurn();
