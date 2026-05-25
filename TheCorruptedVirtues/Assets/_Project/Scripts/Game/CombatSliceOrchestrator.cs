@@ -978,7 +978,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 yield break;
             }
 
-            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(activeUnit, battle, grid.Bounds);
+            EnemyTurnPlan plan = EnemyTurnPlanner.Plan(activeUnit, battle, grid.Bounds, elevation);
 
             if (plan.Target == null)
             {

@@ -184,6 +184,11 @@ Position-derived terms folded into `SituationalProduct`. One source of truth
 * **Area attacks** are non-directional: they take high ground but **never**
   flanking, and hit every opponent in a Chebyshev burst around the target tile
   (`AreaOfEffect` + `AbilityResolver.ResolveArea`, one breakdown per target).
+* **Multi-tile units** (e.g. the 2×2 Great Beast) must keep their whole
+  footprint on **one** elevation level — they can't stop straddling an edge
+  (`ElevationMap.IsUniformUnder` gates footprint pathfinding). Asset-agnostic by
+  design: a real model never has to bridge a ledge, and the anchor tile's level
+  cleanly defines the unit's elevation for the high-ground term.
 
 ### Stat Semantics
 

@@ -60,5 +60,41 @@ namespace TheCorruptedVirtues.Tests
             Assert.That(map.GetLevel(new GridCoord(1, 2)), Is.EqualTo(0));
             Assert.That(map.GetLevel(new GridCoord(2, 1)), Is.EqualTo(0));
         }
+
+        // === IsUniformUnder: the no-straddling rule for multi-tile footprints ===
+
+        [Test]
+        public void IsUniformUnder_FlatGround_True()
+        {
+            var map = new ElevationMap();
+            Assert.That(map.IsUniformUnder(new GridFootprint(2, 2), new GridCoord(2, 2)), Is.True);
+        }
+
+        [Test]
+        public void IsUniformUnder_OneCellRaised_StraddlesEdge_False()
+        {
+            var map = new ElevationMap();
+            map.SetLevel(new GridCoord(3, 3), 1); // one corner of the 2x2 is raised
+            Assert.That(map.IsUniformUnder(new GridFootprint(2, 2), new GridCoord(2, 2)), Is.False);
+        }
+
+        [Test]
+        public void IsUniformUnder_WholeFootprintRaised_True()
+        {
+            var map = new ElevationMap();
+            map.SetLevel(new GridCoord(2, 2), 1);
+            map.SetLevel(new GridCoord(3, 2), 1);
+            map.SetLevel(new GridCoord(2, 3), 1);
+            map.SetLevel(new GridCoord(3, 3), 1);
+            Assert.That(map.IsUniformUnder(new GridFootprint(2, 2), new GridCoord(2, 2)), Is.True);
+        }
+
+        [Test]
+        public void IsUniformUnder_SingleTile_AlwaysTrue()
+        {
+            var map = new ElevationMap();
+            map.SetLevel(new GridCoord(1, 1), 3);
+            Assert.That(map.IsUniformUnder(GridFootprint.Single, new GridCoord(1, 1)), Is.True);
+        }
     }
 }

@@ -71,13 +71,17 @@ namespace TheCorruptedVirtues.CombatSlice.Core
         // Footprint-aware BFS: the anchor path from 'start' to the nearest
         // placeable anchor whose footprint is orthogonally adjacent to
         // 'targetCell' (without overlapping it). 'blocked' must EXCLUDE the
-        // moving unit's own footprint (lift-and-place). Empty if unreachable.
+        // moving unit's own footprint (lift-and-place). When 'elevation' is
+        // supplied, anchors where the footprint would straddle an elevation edge
+        // are impassable — a multi-tile unit must keep its whole footprint on one
+        // level. Empty if unreachable.
         public static List<GridCoord> FindFootprintApproach(
             GridCoord start,
             GridFootprint footprint,
             GridCoord targetCell,
             GridOccupancy blocked,
-            GridBounds bounds)
+            GridBounds bounds,
+            ElevationMap elevation = null)
         {
             GridOccupancy occ = blocked ?? new GridOccupancy();
 
@@ -103,6 +107,12 @@ namespace TheCorruptedVirtues.CombatSlice.Core
                     }
 
                     if (!occ.CanPlace(footprint, next, bounds))
+                    {
+                        continue;
+                    }
+
+                    // Can't stop with the footprint straddling an elevation edge.
+                    if (elevation != null && !elevation.IsUniformUnder(footprint, next))
                     {
                         continue;
                     }

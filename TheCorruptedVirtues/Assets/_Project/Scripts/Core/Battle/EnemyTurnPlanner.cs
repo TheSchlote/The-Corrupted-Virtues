@@ -40,7 +40,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
     // OnEnemyMoveComplete) so the heuristic is testable without the coroutine.
     public static class EnemyTurnPlanner
     {
-        public static EnemyTurnPlan Plan(CombatUnit actor, BattleState state, GridBounds bounds)
+        public static EnemyTurnPlan Plan(CombatUnit actor, BattleState state, GridBounds bounds, ElevationMap elevation = null)
         {
             // Focus-fire: if an opponent is already adjacent, strike the weakest
             // one in place with the strongest ability the actor can afford. A
@@ -62,7 +62,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             // their behaviour — and the tests pinning it — stay unchanged.
             if (!actor.Footprint.IsSingle)
             {
-                return PlanMultiTile(actor, target, state, bounds);
+                return PlanMultiTile(actor, target, state, bounds, elevation);
             }
 
             state.RebuildOccupancy();
@@ -91,11 +91,11 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         // Footprint-aware approach for multi-tile units: a lift-and-place path
         // to the nearest anchor where the unit's footprint is adjacent to the
         // target, capped by MoveRange. Attacks if the move lands adjacent.
-        private static EnemyTurnPlan PlanMultiTile(CombatUnit actor, CombatUnit target, BattleState state, GridBounds bounds)
+        private static EnemyTurnPlan PlanMultiTile(CombatUnit actor, CombatUnit target, BattleState state, GridBounds bounds, ElevationMap elevation = null)
         {
             GridOccupancy others = state.BuildOccupancyExcluding(actor);
             List<GridCoord> path = GridPathfinderBfs.FindFootprintApproach(
-                actor.Coord, actor.Footprint, target.Coord, others, bounds);
+                actor.Coord, actor.Footprint, target.Coord, others, bounds, elevation);
 
             int totalSteps = path.Count - 1;
             if (totalSteps <= 0)
