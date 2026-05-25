@@ -66,7 +66,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 new AbilitySpec("Corruption Slam", AbilityKind.Physical, ElementType.Dark, power: 14, scaling: 1.0f),
             }, footprint: new GridFootprint(2, 2), isGreatBeast: true));
 
-            return new EncounterSpec("Great Beast", units);
+            return new EncounterSpec("Great Beast", units, MapLibrary.Plateau());
         }
 
         // The 2v2 squad fight: four distinct elements so one battle surfaces
@@ -94,7 +94,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 new AbilitySpec("Riptide", AbilityKind.Special, ElementType.Water, power: 18, scaling: 1.2f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
             }));
 
-            return new EncounterSpec("Squads (2v2)", units);
+            return new EncounterSpec("Squads (2v2)", units, MapLibrary.RuinedHall());
         }
     }
 }

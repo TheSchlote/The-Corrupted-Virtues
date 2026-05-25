@@ -58,11 +58,15 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
     {
         public readonly string Name;
         public readonly IReadOnlyList<EncounterUnitSpec> Units;
+        public readonly BattleMapSpec Map;
 
-        public EncounterSpec(string name, IReadOnlyList<EncounterUnitSpec> units)
+        public EncounterSpec(string name, IReadOnlyList<EncounterUnitSpec> units, BattleMapSpec map = null)
         {
             Name = name;
             Units = units;
+            // A null map (e.g. roster-only unit tests) falls back to a flat 8x8
+            // so the orchestrator always has bounds/terrain to apply.
+            Map = map ?? new BattleMapSpec("Default", 8, 8);
         }
 
         public List<CombatUnit> BuildRoster()

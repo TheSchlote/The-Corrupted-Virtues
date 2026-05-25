@@ -13,6 +13,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private static readonly Color AttackColor = new Color(0.95f, 0.75f, 0.3f);
         private static readonly Color InvalidColor = new Color(0.9f, 0.35f, 0.35f);
         private static readonly Color HighGroundColor = new Color(0.30f, 0.34f, 0.40f);
+        private static readonly Color ObstacleColor = new Color(0.40f, 0.32f, 0.26f);
         private static readonly Color AreaColor = new Color(0.95f, 0.55f, 0.25f);
 
         private CombatEvents events;
@@ -23,6 +24,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // Pooled flat slabs lit on the tiles an AoE attack would hit. Grown on
         // demand; surplus markers are hidden, never destroyed.
         private readonly List<GameObject> areaMarkers = new List<GameObject>();
+
+        // Terrain geometry (ground plane + elevation + obstacle blocks), rebuilt
+        // on every GridBuilt. Tracked so an encounter switch tears the old map
+        // down before the new one is raised (GridBuilt fires per encounter now).
+        private readonly List<GameObject> terrainObjects = new List<GameObject>();
 
         public void Initialize(
             CombatEvents combatEvents,
@@ -58,6 +64,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private void OnGridBuilt(GridBuiltEvent e)
         {
+            // GridBuilt fires once per encounter load, so tear down the previous
+            // map's geometry before building this one.
+            ClearTerrain();
+
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "GridGround";
             ground.transform.SetParent(transform, false);
@@ -75,7 +85,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 r.material = ViewMaterials.CreateColored(new Color(0.18f, 0.2f, 0.24f));
             }
 
+            Track(ground);
             BuildElevation(e.Bounds);
+            BuildObstacles(e.Bounds);
         }
 
         // Raised blocks for elevated tiles: one cube per high tile spanning
@@ -120,8 +132,75 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                     {
                         blockRenderer.material = ViewMaterials.CreateColored(HighGroundColor);
                     }
+
+                    Track(block);
                 }
             }
+        }
+
+        // Solid blocks on impassable tiles — taller than elevation steps so they
+        // read as walls rather than high ground. Decorative: the collider is
+        // removed so the cursor's ground raycast is unaffected (obstacle tiles
+        // already resolve to an Invalid selection via the pathfinding occupancy).
+        private void BuildObstacles(GridBounds bounds)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            const float wallHeight = 1.0f;
+            for (int x = 0; x < bounds.Width; x++)
+            {
+                for (int y = 0; y < bounds.Height; y++)
+                {
+                    GridCoord coord = new GridCoord(x, y);
+                    if (!grid.IsObstacle(coord))
+                    {
+                        continue;
+                    }
+
+                    GameObject block = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    block.name = $"Obstacle_{x}_{y}";
+                    block.transform.SetParent(transform, false);
+
+                    Vector3 surface = grid.GridToWorld(coord);
+                    block.transform.localScale = new Vector3(grid.CellSize, wallHeight, grid.CellSize);
+                    block.transform.position = new Vector3(surface.x, surface.y + wallHeight * 0.5f, surface.z);
+
+                    Collider blockCollider = block.GetComponent<Collider>();
+                    if (blockCollider != null)
+                    {
+                        Destroy(blockCollider);
+                    }
+
+                    Renderer blockRenderer = block.GetComponent<Renderer>();
+                    if (blockRenderer != null)
+                    {
+                        blockRenderer.material = ViewMaterials.CreateColored(ObstacleColor);
+                    }
+
+                    Track(block);
+                }
+            }
+        }
+
+        private void Track(GameObject go)
+        {
+            terrainObjects.Add(go);
+        }
+
+        private void ClearTerrain()
+        {
+            for (int i = 0; i < terrainObjects.Count; i++)
+            {
+                if (terrainObjects[i] != null)
+                {
+                    Destroy(terrainObjects[i]);
+                }
+            }
+
+            terrainObjects.Clear();
         }
 
         private void OnSelectionChanged(SelectionChangedEvent e)

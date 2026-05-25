@@ -16,6 +16,11 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         private readonly List<CombatUnit> units = new List<CombatUnit>();
         private readonly GridOccupancy occupancy = new GridOccupancy();
 
+        // Static impassable terrain for the current map (walls/rubble). Folded
+        // into the occupancy the pathfinder reads so movement and placement
+        // treat obstacles as blocked. Empty by default (a flat, open map).
+        private ObstacleMap obstacles = new ObstacleMap();
+
         public IReadOnlyList<CombatUnit> Units => units;
 
         // Living-unit occupancy, rebuilt from unit coords. Pathfinding and
@@ -27,6 +32,14 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         {
             units.Clear();
             units.AddRange(roster);
+            RebuildOccupancy();
+        }
+
+        // Replace the map's static obstacles (on encounter / map load). Rebuilds
+        // occupancy so the new walls take effect immediately. Pass null to clear.
+        public void SetObstacles(ObstacleMap map)
+        {
+            obstacles = map ?? new ObstacleMap();
             RebuildOccupancy();
         }
 
@@ -58,6 +71,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public void RebuildOccupancy()
         {
             occupancy.Clear();
+            SeedObstacles(occupancy);
             for (int i = 0; i < units.Count; i++)
             {
                 if (units[i].IsAlive)
@@ -67,12 +81,24 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             }
         }
 
+        // Mark every obstacle tile occupied so the pathfinder, CanPlace, and
+        // reach checks treat static terrain exactly like a blocked cell — no
+        // pathfinding code needs to know obstacles exist as a separate concept.
+        private void SeedObstacles(GridOccupancy occ)
+        {
+            foreach (GridCoord cell in obstacles.Blocked)
+            {
+                occ.Add(cell);
+            }
+        }
+
         // Occupancy of every OTHER living unit's footprint. Used for
         // lift-and-place pathfinding so a multi-tile unit doesn't collide with
         // the cells it is currently standing on.
         public GridOccupancy BuildOccupancyExcluding(CombatUnit actor)
         {
             GridOccupancy result = new GridOccupancy();
+            SeedObstacles(result);
             for (int i = 0; i < units.Count; i++)
             {
                 CombatUnit u = units[i];

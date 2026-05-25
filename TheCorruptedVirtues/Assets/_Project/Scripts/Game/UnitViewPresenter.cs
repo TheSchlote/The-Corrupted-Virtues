@@ -62,14 +62,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (views.TryGetValue(e.Id, out IUnitView existing))
             {
                 existing.SetVisible(true);
-                existing.Warp(grid.GridToWorld(e.Coord, grid.UnitY) + offset);
+                existing.Warp(grid.GridToWorld(e.Coord) + offset);
                 existing.UpdateHp(e.Hp, e.MaxHp);
                 existing.ClearDamagePreview();
                 return;
             }
 
             IUnitView view = factory.CreateUnit(e.Faction, e.Element, e.Footprint, e.IsGreatBeast);
-            view.Warp(grid.GridToWorld(e.Coord, grid.UnitY) + offset);
+            view.Warp(grid.GridToWorld(e.Coord) + offset);
             view.UpdateHp(e.Hp, e.MaxHp);
             views[e.Id] = view;
         }
@@ -87,7 +87,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             if (views.TryGetValue(e.Id, out IUnitView view))
             {
                 Vector3 offset = centerOffsets.TryGetValue(e.Id, out Vector3 stored) ? stored : Vector3.zero;
-                view.MoveTo(grid.GridToWorld(e.Coord, grid.UnitY) + offset);
+                view.MoveTo(grid.GridToWorld(e.Coord) + offset);
             }
         }
 
