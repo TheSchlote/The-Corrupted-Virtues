@@ -33,9 +33,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private CombatEvents events;
         private GridPresenter grid;
         private ElevationMap elevation;
-        // M2: this branch loads the Great Beast boss fight (2 players vs one 2x2
-        // boss) instead of the 2v2 squad fight. Flip to playtest the squads.
-        [SerializeField] private bool greatBeastEncounter = true;
+        // The roster is data now (EncounterLibrary). F1 cycles this list and the
+        // index wraps; index 0 loads at startup. Terrain stays shared (BuildTerrain).
+        private IReadOnlyList<EncounterSpec> encounters;
+        private int encounterIndex;
         private TacticalCursorController cursor;
         private readonly Dictionary<QteType, IExecutionMeter> meters = new Dictionary<QteType, IExecutionMeter>();
         private IExecutionMeter currentMeter;
@@ -81,17 +82,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
             moveStepDelaySeconds = moveStepDelay;
 
-            battle = new BattleState();
-            turns = new TurnSystem(battle);
-
-            if (greatBeastEncounter)
-            {
-                BuildGreatBeastEncounter();
-            }
-            else
-            {
-                BuildSquads();
-            }
+            encounters = EncounterLibrary.All();
+            encounterIndex = 0;
+            LoadCurrentEncounter();
             BuildTerrain();
 
             events.RaiseGridBuilt(new GridBuiltEvent(grid.Bounds));
@@ -100,118 +93,21 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ResetSliceState();
         }
 
-        // 2v2 squads with four distinct elements so a single fight surfaces
-        // multiple matchups (Light↔Dark mutual STRONG, Fire↔Water STRONG one
-        // direction, plus the neutral cross-pairs). M2 slice 2: each unit now
-        // carries an ability list (index 0 = the free basic attack) and MP.
-        // Players get a second ability that costs MP and is graded harder
-        // (the risk/reward gradient); one player unit's is a Support heal.
-        // Spawn data stays hardcoded here; ScriptableObjects come later.
-        private void BuildSquads()
+        // Build (or rebuild) the battle from the current encounter's data —
+        // fresh CombatUnits via EncounterSpec.BuildRoster. Terrain is built once
+        // in Initialize and shared across encounters (not per-encounter yet).
+        private void LoadCurrentEncounter()
         {
-            List<CombatUnit> roster = new List<CombatUnit>();
-
-            CombatStats lightFast = new CombatStats(
-                maxHP: 90, maxMP: 20,
-                attack: 16, defense: 70,
-                specialAttack: 14, specialDefense: 70,
-                speed: 14);
-            CombatStats fireSturdy = new CombatStats(
-                maxHP: 110, maxMP: 24,
-                attack: 14, defense: 90,
-                specialAttack: 16, specialDefense: 90,
-                speed: 8);
-            CombatStats darkFast = new CombatStats(
-                maxHP: 90, maxMP: 20,
-                attack: 16, defense: 70,
-                specialAttack: 14, specialDefense: 70,
-                speed: 14);
-            CombatStats waterSturdy = new CombatStats(
-                maxHP: 110, maxMP: 24,
-                attack: 14, defense: 90,
-                specialAttack: 16, specialDefense: 90,
-                speed: 8);
-
-            roster.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
-            {
-                new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
-                new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
-                new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Lance of Dawn", AbilityKind.Special, ElementType.Light, power: 26, scaling: 1.3f, mpCost: 12, qteType: QteType.TimedPress, qteDifficulty: QteDifficulty.Hard),
-            }));
-            roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
-            {
-                new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
-                new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, aoeRadius: 1),
-            }));
-
-            roster.Add(MakeUnit(3, Faction.Enemy, new GridCoord(6, 6), darkFast, ElementType.Dark, new List<AbilitySpec>
-            {
-                new AbilitySpec("Corruption Strike", AbilityKind.Physical, ElementType.Dark, power: 10, scaling: 1.0f),
-                new AbilitySpec("Dark Pulse", AbilityKind.Special, ElementType.Dark, power: 20, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
-            }));
-            roster.Add(MakeUnit(4, Faction.Enemy, new GridCoord(6, 4), waterSturdy, ElementType.Water, new List<AbilitySpec>
-            {
-                new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
-                new AbilitySpec("Riptide", AbilityKind.Special, ElementType.Water, power: 18, scaling: 1.2f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
-            }));
-
-            battle.SetRoster(roster);
-        }
-
-        // M2 Great Beast slice: a boss fight - the same two player units versus
-        // one 2x2 corrupted Virtue. Its deep HP pool is the Corruption gauge;
-        // depleting it purifies (wins). Hardcoded like the squads; encounter
-        // data comes later. Stats/positions are first-pass, tunable in playtest.
-        private void BuildGreatBeastEncounter()
-        {
-            List<CombatUnit> roster = new List<CombatUnit>();
-
-            CombatStats lightFast = new CombatStats(
-                maxHP: 90, maxMP: 20, attack: 16, defense: 70,
-                specialAttack: 14, specialDefense: 70, speed: 14);
-            CombatStats fireSturdy = new CombatStats(
-                maxHP: 110, maxMP: 24, attack: 14, defense: 90,
-                specialAttack: 16, specialDefense: 90, speed: 8);
-
-            roster.Add(MakeUnit(1, Faction.Player, new GridCoord(1, 1), lightFast, ElementType.Light, new List<AbilitySpec>
-            {
-                new AbilitySpec("Radiant Cleave", AbilityKind.Physical, ElementType.Light, power: 10, scaling: 1.0f),
-                new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
-                new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Lance of Dawn", AbilityKind.Special, ElementType.Light, power: 26, scaling: 1.3f, mpCost: 12, qteType: QteType.TimedPress, qteDifficulty: QteDifficulty.Hard),
-            }));
-            roster.Add(MakeUnit(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
-            {
-                new AbilitySpec("Ember Strike", AbilityKind.Physical, ElementType.Fire, power: 10, scaling: 1.0f),
-                new AbilitySpec("Mend", AbilityKind.Support, ElementType.Light, power: 24, scaling: 0.6f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Cinder Combo", AbilityKind.Physical, ElementType.Fire, power: 8, scaling: 0.7f, mpCost: 10, qteType: QteType.Matching, qteDifficulty: QteDifficulty.Normal),
-                new AbilitySpec("Flame Nova", AbilityKind.Special, ElementType.Fire, power: 18, scaling: 1.1f, mpCost: 16, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard, aoeRadius: 1),
-            }));
-
-            // The corrupted Virtue: a slow, hard-hitting 2x2 with a deep
-            // Corruption pool (its HP). MakeUnit gives it West facing + the
-            // standard move range; footprint + boss flag set after.
-            CombatStats beastStats = new CombatStats(
-                maxHP: 400, maxMP: 0, attack: 22, defense: 80,
-                specialAttack: 10, specialDefense: 80, speed: 6);
-            CombatUnit beast = MakeUnit(3, Faction.Enemy, new GridCoord(5, 4), beastStats, ElementType.Dark, new List<AbilitySpec>
-            {
-                new AbilitySpec("Corruption Slam", AbilityKind.Physical, ElementType.Dark, power: 14, scaling: 1.0f),
-            });
-            beast.Footprint = new GridFootprint(2, 2);
-            beast.IsGreatBeast = true;
-            roster.Add(beast);
-
-            battle.SetRoster(roster);
+            battle = new BattleState();
+            turns = new TurnSystem(battle);
+            battle.SetRoster(encounters[encounterIndex].BuildRoster());
         }
 
         // M2 terrain slice: a small high-ground plateau in the contested mid-
         // field. Both squads start equidistant from it, so taking the high
         // ground is a real opening choice. Level 1 = one step up (a ×1.25 hit
-        // against a lower target). Hardcoded like the roster; data-driven later.
+        // against a lower target). Shared across encounters for now; per-encounter
+        // terrain data comes with varied maps.
         private void BuildTerrain()
         {
             elevation = new ElevationMap();
@@ -226,31 +122,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
 
             grid.SetElevation(elevation);
-        }
-
-        private static CombatUnit MakeUnit(int id, Faction faction, GridCoord coord, CombatStats stats, ElementType element, List<AbilitySpec> abilities)
-        {
-            // Auto-facing starts pointed at the opposing side (players sit at
-            // low X, enemies high), so opening shots are frontal until someone
-            // maneuvers around a flank.
-            Facing facing = faction == Faction.Player ? Facing.East : Facing.West;
-            CombatUnit unit = new CombatUnit
-            {
-                Id = new UnitId(id),
-                Faction = faction,
-                Coord = coord,
-                SpawnCoord = coord,
-                Facing = facing,
-                SpawnFacing = facing,
-                Stats = stats,
-                Element = element,
-                Abilities = abilities,
-                SelectedAbilityIndex = 0,
-                MoveRange = 4
-            };
-            unit.Hp = unit.MaxHp;
-            unit.Mp = unit.MaxMp;
-            return unit;
         }
 
         private void Update()
@@ -320,26 +191,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private bool IsPlayerTurn => activeUnit != null && activeUnit.Faction == Faction.Player;
 
-        // Debug/playtest (F1): rebuild the fight in the other encounter without
-        // leaving Play. Terrain is unchanged; the roster is swapped and the slice
-        // reset. StopAllCoroutines first so any in-flight move/QTE/enemy turn is
-        // abandoned cleanly before the rebuild.
+        // Debug/playtest (F1): cycle to the next encounter and rebuild. Terrain
+        // is unchanged; StopAllCoroutines abandons any in-flight move/QTE/enemy
+        // turn before the rebuild.
         private void SwitchEncounter()
         {
             StopAllCoroutines();
-            greatBeastEncounter = !greatBeastEncounter;
-
-            battle = new BattleState();
-            turns = new TurnSystem(battle);
-            if (greatBeastEncounter)
-            {
-                BuildGreatBeastEncounter();
-            }
-            else
-            {
-                BuildSquads();
-            }
-
+            encounterIndex = (encounterIndex + 1) % encounters.Count;
+            LoadCurrentEncounter();
             ResetSliceState();
         }
 
