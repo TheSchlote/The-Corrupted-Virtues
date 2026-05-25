@@ -266,6 +266,12 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            if (GameInput.Current.SwitchEncounterPressed)
+            {
+                SwitchEncounter();
+                return;
+            }
+
             if (isCombatOver)
             {
                 return;
@@ -313,6 +319,29 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         }
 
         private bool IsPlayerTurn => activeUnit != null && activeUnit.Faction == Faction.Player;
+
+        // Debug/playtest (F1): rebuild the fight in the other encounter without
+        // leaving Play. Terrain is unchanged; the roster is swapped and the slice
+        // reset. StopAllCoroutines first so any in-flight move/QTE/enemy turn is
+        // abandoned cleanly before the rebuild.
+        private void SwitchEncounter()
+        {
+            StopAllCoroutines();
+            greatBeastEncounter = !greatBeastEncounter;
+
+            battle = new BattleState();
+            turns = new TurnSystem(battle);
+            if (greatBeastEncounter)
+            {
+                BuildGreatBeastEncounter();
+            }
+            else
+            {
+                BuildSquads();
+            }
+
+            ResetSliceState();
+        }
 
         private void ResetSliceState()
         {

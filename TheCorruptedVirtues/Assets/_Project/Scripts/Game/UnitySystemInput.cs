@@ -63,6 +63,17 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
+        public bool SwitchEncounterPressed
+        {
+            get
+            {
+                // F1 = dev toggle between the squad fight and the Great Beast.
+                // Keyboard-only on purpose: a playtest affordance, not a player control.
+                Keyboard kb = Keyboard.current;
+                return kb != null && kb.f1Key.wasPressedThisFrame;
+            }
+        }
+
         public Vector2Int MoveAxis
         {
             get
