@@ -40,7 +40,22 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
     // OnEnemyMoveComplete) so the heuristic is testable without the coroutine.
     public static class EnemyTurnPlanner
     {
+        // Dispatch on the actor's AI policy. Only Aggressive ships today (the
+        // original heuristic); the switch reserves the seam for future archetypes
+        // without the caller — the simulator or the orchestrator — changing.
         public static EnemyTurnPlan Plan(CombatUnit actor, BattleState state, GridBounds bounds, ElevationMap elevation = null)
+        {
+            switch (actor.AiBehavior)
+            {
+                case AiBehavior.Aggressive:
+                default:
+                    return PlanAggressive(actor, state, bounds, elevation);
+            }
+        }
+
+        // The shipped per-unit heuristic: focus-fire the weakest adjacent
+        // opponent, else approach the nearest, else end the turn.
+        private static EnemyTurnPlan PlanAggressive(CombatUnit actor, BattleState state, GridBounds bounds, ElevationMap elevation = null)
         {
             // Focus-fire: if an opponent is already adjacent, strike the weakest
             // one in place with the strongest ability the actor can afford. A

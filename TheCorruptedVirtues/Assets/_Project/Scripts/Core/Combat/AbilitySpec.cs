@@ -25,6 +25,14 @@ namespace TheCorruptedVirtues.Combat
         // disagree: an ability is AoE iff it has a burst radius.
         public bool IsAreaOfEffect => AoeRadius > 0;
 
+        // Targeting and range, decoupled from Kind (which now selects only the
+        // damage/heal formula). Defaults reproduce the old Kind-derived rule:
+        // Support targets allies, everything else targets enemies, all at melee
+        // range 1 — so existing content is unchanged while ranged / self / ally-
+        // target abilities become expressible as data.
+        public TargetingMode Targeting { get; }
+        public int Range { get; }
+
         // Basic-attack shorthand: free, swing meter, normal difficulty. Keeps
         // the M1.5 call sites and characterization tests unchanged.
         public AbilitySpec(string name, AbilityKind kind, ElementType element, int power, float scaling)
@@ -41,7 +49,9 @@ namespace TheCorruptedVirtues.Combat
             int mpCost,
             QteType qteType,
             QteDifficulty qteDifficulty,
-            int aoeRadius = 0)
+            int aoeRadius = 0,
+            TargetingMode? targeting = null,
+            int range = 1)
         {
             Name = name;
             Kind = kind;
@@ -52,6 +62,10 @@ namespace TheCorruptedVirtues.Combat
             QteType = qteType;
             QteDifficulty = qteDifficulty;
             AoeRadius = aoeRadius < 0 ? 0 : aoeRadius;
+            // Default targeting derives from Kind so existing call sites are
+            // unchanged: Support heals allies, everything else strikes enemies.
+            Targeting = targeting ?? (kind == AbilityKind.Support ? TargetingMode.Ally : TargetingMode.Enemy);
+            Range = range < 1 ? 1 : range;
         }
     }
 }

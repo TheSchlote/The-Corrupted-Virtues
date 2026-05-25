@@ -13,6 +13,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
+        // Reused across SetColor calls so retinting never allocates. GetPropertyBlock
+        // refills it from the target renderer each time, so sharing one is safe.
+        private static MaterialPropertyBlock sharedBlock;
+
         public static Material CreateColored(Color color)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -33,10 +37,25 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         public static void SetColor(Renderer renderer, Color color)
         {
-            if (renderer != null)
+            if (renderer == null)
             {
-                ApplyColor(renderer.material, color);
+                return;
             }
+
+            // Tint via a MaterialPropertyBlock instead of renderer.material: the
+            // material getter clones a fresh Material on every access, which leaked
+            // one per call in the hot paths that retint constantly (the hit-flash
+            // runs every frame; the cursor recolours on every cursor move). The
+            // block overrides both pipeline colour properties, same as a material.
+            if (sharedBlock == null)
+            {
+                sharedBlock = new MaterialPropertyBlock();
+            }
+
+            renderer.GetPropertyBlock(sharedBlock);
+            sharedBlock.SetColor(BaseColorId, color);
+            sharedBlock.SetColor(ColorId, color);
+            renderer.SetPropertyBlock(sharedBlock);
         }
 
         private static void ApplyColor(Material material, Color color)

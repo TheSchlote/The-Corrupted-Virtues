@@ -16,8 +16,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             CreateDirectionalLight();
             GridPresenter grid = CreateGrid();
-            Transform cameraTransform = CreateCamera();
+            Transform cameraTransform = CreateCamera(out TacticalCameraController cameraController);
             Renderer cursorRenderer = CreateCursor(grid, cameraTransform, out TacticalCursorController cursor);
+            // Inject the follow target rather than letting the camera find it by
+            // name; both are built right here.
+            cameraController.SetFollowTarget(cursor.transform);
             PathPreviewRenderer pathPreview = CreatePathPreview(grid);
             IExecutionMeter swingMeter = CreateSwingMeter();
             IExecutionMeter buttonMashMeter = CreateButtonMashMeter();
@@ -67,14 +70,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return CreateChild("Grid").AddComponent<GridPresenter>();
         }
 
-        private Transform CreateCamera()
+        private Transform CreateCamera(out TacticalCameraController cameraController)
         {
             GameObject cameraObject = CreateChild("MainCamera");
             cameraObject.tag = "MainCamera";
             cameraObject.AddComponent<Camera>();
             cameraObject.AddComponent<AudioListener>();
             cameraObject.transform.position = new Vector3(1f, 12f, -7f);
-            cameraObject.AddComponent<TacticalCameraController>();
+            cameraController = cameraObject.AddComponent<TacticalCameraController>();
             return cameraObject.transform;
         }
 

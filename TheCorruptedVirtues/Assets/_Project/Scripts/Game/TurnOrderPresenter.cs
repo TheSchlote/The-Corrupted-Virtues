@@ -139,7 +139,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             bodyRect.offsetMin = Vector2.zero;
             bodyRect.offsetMax = Vector2.zero;
             Image bodyImg = body.AddComponent<Image>();
-            bodyImg.color = ColorForElement(meta.Element);
+            bodyImg.color = ElementPalette.For(meta.Element);
             bodyImg.raycastTarget = false;
 
             // Faction badge — a thin strip across the bottom of the chip in
@@ -159,21 +159,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             badgeImg.raycastTarget = false;
 
             chipObjects.Add(chip);
-        }
-
-        private static Color ColorForElement(ElementType element)
-        {
-            switch (element)
-            {
-                case ElementType.Light:       return new Color(0.98f, 0.92f, 0.62f);
-                case ElementType.Dark:        return new Color(0.32f, 0.18f, 0.42f);
-                case ElementType.Fire:        return new Color(0.95f, 0.40f, 0.20f);
-                case ElementType.Water:       return new Color(0.30f, 0.55f, 0.95f);
-                case ElementType.Nature:      return new Color(0.40f, 0.80f, 0.35f);
-                case ElementType.Earth:       return new Color(0.65f, 0.50f, 0.30f);
-                case ElementType.Electricity: return new Color(0.95f, 0.85f, 0.30f);
-                default:                      return new Color(0.7f, 0.7f, 0.7f);
-            }
         }
 
         private void BuildCanvas()

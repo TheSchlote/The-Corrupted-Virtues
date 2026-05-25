@@ -1,7 +1,9 @@
+using System;
+
 namespace TheCorruptedVirtues.CombatSlice.Core
 {
     // Integer grid coordinate for 2D tile indexing.
-    public readonly struct GridCoord
+    public readonly struct GridCoord : IEquatable<GridCoord>
     {
         public readonly int X;
         public readonly int Y;

@@ -23,17 +23,15 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private float pitch = 45f;
         private float distance = 10f;
 
+        // Injected by CombatSliceBootstrap before Start() so the camera follows
+        // the cursor without a fragile GameObject.Find("TacticalCursor") by name.
+        public void SetFollowTarget(Transform target)
+        {
+            followTarget = target;
+        }
+
         private void Start()
         {
-            if (followTarget == null)
-            {
-                GameObject cursorObject = GameObject.Find("TacticalCursor");
-                if (cursorObject != null)
-                {
-                    followTarget = cursorObject.transform;
-                }
-            }
-
             if (followTarget != null)
             {
                 focusPoint = followTarget.position + focusOffset;

@@ -46,8 +46,26 @@ namespace TheCorruptedVirtues.Tests
             Assert.That(unit.SpawnFacing, Is.EqualTo(Facing.East));
             Assert.That(unit.Hp, Is.EqualTo(unit.MaxHp));
             Assert.That(unit.Mp, Is.EqualTo(unit.MaxMp));
-            Assert.That(unit.MoveRange, Is.EqualTo(4));
+            Assert.That(unit.MoveRange, Is.EqualTo(4));              // per-unit default
+            Assert.That(unit.AiBehavior, Is.EqualTo(AiBehavior.Aggressive));
             Assert.That(unit.Footprint.IsSingle, Is.True);           // default footprint
+        }
+
+        [Test]
+        public void BuildUnit_AppliesPerUnitMoveRange()
+        {
+            var spec = new EncounterSpec("Test", new List<EncounterUnitSpec>
+            {
+                new EncounterUnitSpec(1, Faction.Enemy, new GridCoord(5, 5),
+                    new CombatStats(100, 0, 20, 10, 20, 10, 8), ElementType.Dark,
+                    new List<AbilitySpec> { new AbilitySpec("Bite", AbilityKind.Physical, ElementType.Dark, 10, 1.0f) },
+                    moveRange: 6),
+            });
+
+            CombatUnit unit = spec.BuildRoster()[0];
+
+            // A custom move range flows through instead of the global default.
+            Assert.That(unit.MoveRange, Is.EqualTo(6));
         }
 
         [Test]

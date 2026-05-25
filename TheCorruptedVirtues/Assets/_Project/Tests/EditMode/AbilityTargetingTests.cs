@@ -92,5 +92,43 @@ namespace TheCorruptedVirtues.Tests
             CombatUnit enemy = Unit(2, Faction.Enemy, new GridCoord(2, 3));
             Assert.That(AbilityTargeting.IsValidTarget(actor, Heal, enemy), Is.False);
         }
+
+        [Test]
+        public void DefaultTargeting_DerivesFromKind()
+        {
+            // The decoupled axes default to the old Kind-derived rule.
+            Assert.That(Attack.Targeting, Is.EqualTo(TargetingMode.Enemy));
+            Assert.That(Attack.Range, Is.EqualTo(1));
+            Assert.That(Heal.Targeting, Is.EqualTo(TargetingMode.Ally));
+        }
+
+        [Test]
+        public void SelfTargeting_MatchesOnlyTheCaster()
+        {
+            AbilitySpec selfBuff = new AbilitySpec(
+                "Guard", AbilityKind.Support, ElementType.Light, 0, 1.0f,
+                mpCost: 0, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal,
+                targeting: TargetingMode.Self);
+            CombatUnit actor = Unit(1, Faction.Player, new GridCoord(2, 2));
+            CombatUnit ally = Unit(2, Faction.Player, new GridCoord(2, 3));
+
+            Assert.That(AbilityTargeting.IsValidTarget(actor, selfBuff, actor), Is.True);
+            Assert.That(AbilityTargeting.IsValidTarget(actor, selfBuff, ally), Is.False);
+        }
+
+        [Test]
+        public void RangedEnemyTargeting_ReachesBeyondAdjacency()
+        {
+            AbilitySpec ranged = new AbilitySpec(
+                "Snipe", AbilityKind.Special, ElementType.Light, 10, 1.0f,
+                mpCost: 0, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal,
+                targeting: TargetingMode.Enemy, range: 3);
+            CombatUnit actor = Unit(1, Faction.Player, new GridCoord(2, 2));
+            CombatUnit inRange = Unit(2, Faction.Enemy, new GridCoord(2, 5));    // Manhattan 3
+            CombatUnit outOfRange = Unit(3, Faction.Enemy, new GridCoord(2, 6)); // Manhattan 4
+
+            Assert.That(AbilityTargeting.IsValidTarget(actor, ranged, inRange), Is.True);
+            Assert.That(AbilityTargeting.IsValidTarget(actor, ranged, outOfRange), Is.False);
+        }
     }
 }

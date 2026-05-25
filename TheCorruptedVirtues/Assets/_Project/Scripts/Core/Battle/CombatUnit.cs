@@ -34,6 +34,10 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public List<AbilitySpec> Abilities;
         public int SelectedAbilityIndex;
         public int MoveRange;
+        // Per-unit AI policy (EnemyTurnPlanner dispatches on it). Defaults to
+        // Aggressive — the shipped routine — so units built without setting it
+        // behave exactly as before.
+        public AiBehavior AiBehavior;
 
         public int MaxHp => Stats.MaxHP;
         public int MaxMp => Stats.MaxMP;
