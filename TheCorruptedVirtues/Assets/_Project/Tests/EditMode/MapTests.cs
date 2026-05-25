@@ -154,5 +154,51 @@ namespace TheCorruptedVirtues.Tests
                 }
             }
         }
+
+        // Guards against an obstacle/elevation layout that walls a unit off:
+        // every enemy must have *some* path (over any number of turns) to a
+        // player. The 2x2 beast is the sharp case — it needs 2-wide lanes, so a
+        // map that only leaves it a 1-wide gap would strand it here.
+        [Test]
+        public void EveryEncounter_EachEnemyCanReachAPlayer()
+        {
+            foreach (EncounterSpec spec in EncounterLibrary.All())
+            {
+                GridBounds bounds = spec.Map.Bounds;
+                ElevationMap elevation = spec.Map.BuildElevationMap();
+
+                var battle = new BattleState();
+                battle.SetObstacles(spec.Map.BuildObstacleMap());
+                battle.SetRoster(spec.BuildRoster());
+
+                var players = new List<CombatUnit>();
+                var enemies = new List<CombatUnit>();
+                foreach (CombatUnit u in battle.Units)
+                {
+                    (u.Faction == Faction.Player ? players : enemies).Add(u);
+                }
+
+                foreach (CombatUnit enemy in enemies)
+                {
+                    GridOccupancy blocked = battle.BuildOccupancyExcluding(enemy);
+                    bool canReach = false;
+
+                    foreach (CombatUnit player in players)
+                    {
+                        bool reached = enemy.Footprint.IsSingle
+                            ? GridPathfinderBfs.FindPath(enemy.Coord, player.Coord, blocked, bounds).Count > 0
+                            : GridPathfinderBfs.FindFootprintApproach(enemy.Coord, enemy.Footprint, player.Coord, blocked, bounds, elevation).Count > 0;
+                        if (reached)
+                        {
+                            canReach = true;
+                            break;
+                        }
+                    }
+
+                    Assert.That(canReach, Is.True,
+                        $"{spec.Name}: enemy {enemy.Id.Value} at ({enemy.Coord.X},{enemy.Coord.Y}) is walled off from every player");
+                }
+            }
+        }
     }
 }

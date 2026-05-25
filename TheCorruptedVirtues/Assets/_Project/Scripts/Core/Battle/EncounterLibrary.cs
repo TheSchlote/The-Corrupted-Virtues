@@ -19,6 +19,9 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             {
                 GreatBeast(),
                 Squads(),
+                PillarBeast(),
+                HighlandSiege(),
+                Narrows(),
             };
         }
 
@@ -95,6 +98,63 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             }));
 
             return new EncounterSpec("Squads (2v2)", units, MapLibrary.RuinedHall());
+        }
+
+        // A second Great Beast fight, on the Pillared Hall — the 2x2 boss has to
+        // weave through the pillars' 2-wide lanes to close on the squad.
+        private static EncounterSpec PillarBeast()
+        {
+            List<EncounterUnitSpec> units = PlayerSquad();
+
+            CombatStats beastStats = new CombatStats(
+                maxHP: 400, maxMP: 0, attack: 22, defense: 80,
+                specialAttack: 10, specialDefense: 80, speed: 6);
+            units.Add(new EncounterUnitSpec(3, Faction.Enemy, new GridCoord(7, 4), beastStats, ElementType.Dark, new List<AbilitySpec>
+            {
+                new AbilitySpec("Corruption Slam", AbilityKind.Physical, ElementType.Dark, power: 14, scaling: 1.0f),
+            }, footprint: new GridFootprint(2, 2), isGreatBeast: true));
+
+            return new EncounterSpec("Great Beast (Pillars)", units, MapLibrary.PillaredHall());
+        }
+
+        // The squad assaults defenders dug in on the highland's high ground.
+        private static EncounterSpec HighlandSiege()
+        {
+            List<EncounterUnitSpec> units = PlayerSquad();
+            AddMinionPair(units, darkAt: new GridCoord(7, 3), waterAt: new GridCoord(6, 4));
+            return new EncounterSpec("Highland Siege", units, MapLibrary.HighlandSiege());
+        }
+
+        // A funnel fight: the squad threads the serpentine corridor to reach the
+        // minions holding the far end.
+        private static EncounterSpec Narrows()
+        {
+            List<EncounterUnitSpec> units = PlayerSquad();
+            AddMinionPair(units, darkAt: new GridCoord(9, 1), waterAt: new GridCoord(9, 2));
+            return new EncounterSpec("The Narrows", units, MapLibrary.TheNarrows());
+        }
+
+        // Two standard corrupted minions — a fast Dark striker and a sturdy Water
+        // defender — at the given tiles. Ids 3/4 follow the player squad's 1/2.
+        private static void AddMinionPair(List<EncounterUnitSpec> units, GridCoord darkAt, GridCoord waterAt)
+        {
+            CombatStats darkFast = new CombatStats(
+                maxHP: 90, maxMP: 20, attack: 16, defense: 70,
+                specialAttack: 14, specialDefense: 70, speed: 14);
+            CombatStats waterSturdy = new CombatStats(
+                maxHP: 110, maxMP: 24, attack: 14, defense: 90,
+                specialAttack: 16, specialDefense: 90, speed: 8);
+
+            units.Add(new EncounterUnitSpec(3, Faction.Enemy, darkAt, darkFast, ElementType.Dark, new List<AbilitySpec>
+            {
+                new AbilitySpec("Corruption Strike", AbilityKind.Physical, ElementType.Dark, power: 10, scaling: 1.0f),
+                new AbilitySpec("Dark Pulse", AbilityKind.Special, ElementType.Dark, power: 20, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
+            }));
+            units.Add(new EncounterUnitSpec(4, Faction.Enemy, waterAt, waterSturdy, ElementType.Water, new List<AbilitySpec>
+            {
+                new AbilitySpec("Tidal Slash", AbilityKind.Physical, ElementType.Water, power: 10, scaling: 1.0f),
+                new AbilitySpec("Riptide", AbilityKind.Special, ElementType.Water, power: 18, scaling: 1.2f, mpCost: 12, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Normal),
+            }));
         }
     }
 }
