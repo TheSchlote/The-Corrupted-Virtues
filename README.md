@@ -10,7 +10,7 @@ separated from the Unity presentation layer.
 
 ## Tech
 
-- **Unity** 6000.3.4f1 · Universal Render Pipeline · new Input System
+- **Unity** 6000.3.15f1 · Universal Render Pipeline · new Input System
 - **Language** C# — pure logic assemblies have no `UnityEngine` dependency
 - Targets PC (keyboard/mouse + gamepad)
 
@@ -21,7 +21,11 @@ TheCorruptedVirtues/              Unity project
   Assets/_Project/
     Scripts/Core/Combat/          pure C# — damage/element/execution math   (asmdef: TheCorruptedVirtues.Combat)
     Scripts/Core/Grid/            pure C# — grid + pathfinding              (asmdef: TheCorruptedVirtues.GridCore)
+    Scripts/Core/Battle/          pure C# — combat-on-a-grid systems        (asmdef: TheCorruptedVirtues.Battle)
     Scripts/Game/                 MonoBehaviours / Unity layer             (asmdef: TheCorruptedVirtues.Unity)
+    Scripts/Game/Data/            ScriptableObject content types (convert to the pure specs)
+    Scripts/Editor/               Editor-only content asset generator      (asmdef: TheCorruptedVirtues.EditorTools)
+    Resources/Encounters/         authored SO content (encounters · maps · units · abilities)
     Tests/EditMode/               NUnit characterization tests             (asmdef: TheCorruptedVirtues.Tests.EditMode)
 docs/                             DESIGN.md · LORE.md · STORY.md
 ROADMAP.md                        living plan & milestones (edit freely)
@@ -29,7 +33,7 @@ ROADMAP.md                        living plan & milestones (edit freely)
 
 ## Getting started
 
-1. Install **Unity 6000.3.4f1** (via Unity Hub) and **Git LFS** (`git lfs install`).
+1. Install **Unity 6000.3.15f1** (via Unity Hub) and **Git LFS** (`git lfs install`).
 2. Clone, then open the `TheCorruptedVirtues/` folder in Unity Hub.
 3. Let Unity import/recompile. Run tests via **Window → General → Test Runner → EditMode**.
 
