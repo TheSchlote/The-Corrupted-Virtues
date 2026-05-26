@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adc6db9c0d39001488a9d96b80374e4f, type: 3}
+  m_Name: Dark Unit 4
+  m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.UnitArchetypeSO
+  displayName: Dark Unit 4
+  element: 6
+  maxHP: 90
+  maxMP: 20
+  attack: 16
+  defense: 70
+  specialAttack: 14
+  specialDefense: 70
+  speed: 14
+  moveRange: 4
+  aiBehavior: 0
+  isBoss: 0
+  footprintWidth: 1
+  footprintHeight: 1
+  abilities:
+  - {fileID: 11400000, guid: 4cb7338988b6ddb49a8b6c69c391146a, type: 2}
+  - {fileID: 11400000, guid: b4674499b65cb244c9045d907e15fe9b, type: 2}

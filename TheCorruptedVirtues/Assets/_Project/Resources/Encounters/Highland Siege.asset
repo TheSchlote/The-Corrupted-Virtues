@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f376fd8eb542e8447927aa3a612932b0, type: 3}
+  m_Name: Highland Siege
+  m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.EncounterSO
+  displayName: Highland Siege
+  sortOrder: 3
+  map: {fileID: 11400000, guid: b5d4a8501503002448bebfb2c805e240, type: 2}
+  placements:
+  - unit: {fileID: 11400000, guid: 5804e3e53086be04b93e5740c3f29b00, type: 2}
+    faction: 0
+    id: 1
+    coord: {x: 1, y: 1}
+  - unit: {fileID: 11400000, guid: ffa4224ffa297b746b0b75468b92f9d0, type: 2}
+    faction: 0
+    id: 2
+    coord: {x: 1, y: 3}
+  - unit: {fileID: 11400000, guid: fa026fe6acca6f3448c5f3a407beace3, type: 2}
+    faction: 1
+    id: 3
+    coord: {x: 7, y: 3}
+  - unit: {fileID: 11400000, guid: da92a0fc4a76054418d885b2dd3e6a63, type: 2}
+    faction: 1
+    id: 4
+    coord: {x: 6, y: 4}

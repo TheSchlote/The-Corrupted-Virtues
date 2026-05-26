@@ -19,7 +19,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             this.parent = parent;
         }
 
-        public IUnitView CreateUnit(Faction faction, ElementType element, GridFootprint footprint, bool isGreatBeast)
+        public IUnitView CreateUnit(Faction faction, ElementType element, GridFootprint footprint, bool isBoss)
         {
             PrimitiveType shape = faction == Faction.Player
                 ? PrimitiveType.Capsule
@@ -27,8 +27,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Color color = ElementPalette.For(element);
 
             GameObject go = GameObject.CreatePrimitive(shape);
-            go.name = isGreatBeast
-                ? "GreatBeastView"
+            go.name = isBoss
+                ? "BossView"
                 : (faction == Faction.Player ? "PlayerUnitView" : "EnemyUnitView");
             if (parent != null)
             {
@@ -48,7 +48,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             renderer.material = ViewMaterials.CreateColored(color);
 
             PrimitiveUnitView view = go.AddComponent<PrimitiveUnitView>();
-            view.Configure(renderer, color, isGreatBeast);
+            view.Configure(renderer, color, isBoss);
             return view;
         }
     }

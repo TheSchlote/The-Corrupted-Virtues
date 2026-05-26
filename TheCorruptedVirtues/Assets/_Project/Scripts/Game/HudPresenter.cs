@@ -32,7 +32,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private TMP_Text damageInfoText;
         private TMP_Text endTurnHintText;
         private TMP_Text abilityText;
-        private bool greatBeastInPlay;
+        private bool bossInPlay;
 
         public void Initialize(CombatEvents combatEvents)
         {
@@ -72,9 +72,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void OnUnitSpawned(UnitSpawnedEvent e)
         {
             unitStates[e.Id] = new UnitState { Faction = e.Faction, IsAlive = e.Hp > 0 };
-            if (e.IsGreatBeast)
+            if (e.IsBoss)
             {
-                greatBeastInPlay = true;
+                bossInPlay = true;
             }
             RefreshSquadCounts();
         }
@@ -201,7 +201,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             if (outcomeText != null)
             {
-                string playerWinText = greatBeastInPlay
+                string playerWinText = bossInPlay
                     ? "PURIFIED\n<size=60%>Press R to fight again</size>"
                     : "VICTORY\n<size=60%>Press R to fight again</size>";
                 outcomeText.text = winner == Faction.Player
@@ -238,7 +238,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void OnCombatReset()
         {
             unitStates.Clear();
-            greatBeastInPlay = false;
+            bossInPlay = false;
             RefreshSquadCounts();
             if (hintText != null)
             {

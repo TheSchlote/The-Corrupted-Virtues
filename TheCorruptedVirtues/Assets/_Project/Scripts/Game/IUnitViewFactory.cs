@@ -11,6 +11,6 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
     // colour for element.
     public interface IUnitViewFactory
     {
-        IUnitView CreateUnit(Faction faction, ElementType element, GridFootprint footprint, bool isGreatBeast);
+        IUnitView CreateUnit(Faction faction, ElementType element, GridFootprint footprint, bool isBoss);
     }
 }

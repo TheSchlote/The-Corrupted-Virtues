@@ -21,7 +21,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public readonly ElementType Element;
         public readonly IReadOnlyList<AbilitySpec> Abilities;
         public readonly GridFootprint Footprint;
-        public readonly bool IsGreatBeast;
+        public readonly bool IsBoss;
         public readonly int MoveRange;
         public readonly AiBehavior AiBehavior;
 
@@ -33,7 +33,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             ElementType element,
             IReadOnlyList<AbilitySpec> abilities,
             GridFootprint footprint = default,
-            bool isGreatBeast = false,
+            bool isBoss = false,
             int moveRange = DefaultMoveRange,
             AiBehavior aiBehavior = AiBehavior.Aggressive)
         {
@@ -45,7 +45,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             Abilities = abilities;
             // default(GridFootprint) is (0,0); normalise to 1x1 for normal units.
             Footprint = footprint.Width < 1 || footprint.Height < 1 ? GridFootprint.Single : footprint;
-            IsGreatBeast = isGreatBeast;
+            IsBoss = isBoss;
             MoveRange = moveRange < 1 ? DefaultMoveRange : moveRange;
             AiBehavior = aiBehavior;
         }
@@ -94,7 +94,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 Facing = facing,
                 SpawnFacing = facing,
                 Footprint = spec.Footprint,
-                IsGreatBeast = spec.IsGreatBeast,
+                IsBoss = spec.IsBoss,
                 Stats = spec.Stats,
                 Element = spec.Element,
                 // Fresh list per build so rebuilt rosters never alias one another.

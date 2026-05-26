@@ -8,7 +8,7 @@ namespace TheCorruptedVirtues.CombatSlice.Core
     // grades the high-ground bonus, GridOccupancy tracks who is standing where,
     // and this marks tiles nothing can stand on or path through. A tile not
     // added is passable. Obstacles are folded into the occupancy the pathfinder
-    // reads (see BattleState.RebuildOccupancy), so movement/placement code
+    // reads (see BattleState), so movement/placement code
     // treats them as blocked without consulting this directly.
     public sealed class ObstacleMap
     {

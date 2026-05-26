@@ -68,7 +68,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            IUnitView view = factory.CreateUnit(e.Faction, e.Element, e.Footprint, e.IsGreatBeast);
+            IUnitView view = factory.CreateUnit(e.Faction, e.Element, e.Footprint, e.IsBoss);
             view.Warp(grid.GridToWorld(e.Coord) + offset);
             view.UpdateHp(e.Hp, e.MaxHp);
             views[e.Id] = view;

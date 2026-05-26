@@ -83,7 +83,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
             moveStepDelaySeconds = moveStepDelay;
 
-            encounters = EncounterLibrary.All();
+            encounters = EncounterCatalog.Load();
             encounterIndex = 0;
             LoadCurrentEncounter();
 
@@ -230,7 +230,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.RaiseCombatReset();
             foreach (CombatUnit unit in battle.Units)
             {
-                events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp, unit.Footprint, unit.IsGreatBeast));
+                events.RaiseUnitSpawned(new UnitSpawnedEvent(unit.Id, unit.Faction, unit.Element, unit.Coord, unit.Hp, unit.MaxHp, unit.Footprint, unit.IsBoss));
                 events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(unit.Id, unit.Facing));
             }
 

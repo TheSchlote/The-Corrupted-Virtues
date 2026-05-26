@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adc6db9c0d39001488a9d96b80374e4f, type: 3}
+  m_Name: Light Unit 1
+  m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.UnitArchetypeSO
+  displayName: Light Unit 1
+  element: 5
+  maxHP: 90
+  maxMP: 20
+  attack: 16
+  defense: 70
+  specialAttack: 14
+  specialDefense: 70
+  speed: 14
+  moveRange: 4
+  aiBehavior: 0
+  isBoss: 0
+  footprintWidth: 1
+  footprintHeight: 1
+  abilities:
+  - {fileID: 11400000, guid: e17d3e3c3f57adc43957b3b094ec135c, type: 2}
+  - {fileID: 11400000, guid: f89eec96cc3eb2d449b73fb630a67169, type: 2}
+  - {fileID: 11400000, guid: 1f1984612621ec049864e194f9af8ea2, type: 2}
+  - {fileID: 11400000, guid: aaa1b4868e432994b9f85a13f8c33ee2, type: 2}

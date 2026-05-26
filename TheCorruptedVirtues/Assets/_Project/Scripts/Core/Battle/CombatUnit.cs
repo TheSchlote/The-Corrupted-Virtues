@@ -21,12 +21,12 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
         public Facing Facing;
         public Facing SpawnFacing;
         // Tiles occupied, anchored at Coord. 1x1 for normal units; the 2x2
-        // Great Beast bosses set this larger. Defaults to Single so existing
+        // Boss bosses set this larger. Defaults to Single so existing
         // single-tile units need no change.
         public GridFootprint Footprint = GridFootprint.Single;
         // The corrupted-Virtue boss: a multi-tile unit whose HP pool reads as a
         // Corruption gauge and whose defeat is a "purify", not a kill.
-        public bool IsGreatBeast;
+        public bool IsBoss;
         public int Hp;
         public int Mp;
         public CombatStats Stats;

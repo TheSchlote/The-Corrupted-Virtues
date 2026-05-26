@@ -4,7 +4,7 @@ namespace TheCorruptedVirtues.Combat
     // DEF / Sp.ATK / Sp.DEF / SPD). Each feeds the combat math in exactly one
     // place; see docs/DESIGN.md "Stat Semantics" for the canonical roles:
     //
-    //   MaxHP          - health pool; reaching 0 is death (the Great Beast's
+    //   MaxHP          - health pool; reaching 0 is death (the Boss's
     //                    pool is its Corruption gauge: depleting it purifies).
     //   MaxMP          - ability resource; spent on commit, no passive regen.
     //   Attack/Defense - the Physical-ability attack/mitigation pair.

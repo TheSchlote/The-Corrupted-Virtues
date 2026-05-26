@@ -28,20 +28,20 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
         private int cachedCurrentHp;
         private int cachedMaxHp;
-        private bool isGreatBeast;
+        private bool isBoss;
         private float groundOffset;
 
-        public void Configure(Renderer renderer, Color color, bool greatBeast = false)
+        public void Configure(Renderer renderer, Color color, bool boss = false)
         {
             primitiveRenderer = renderer;
             baseColor = color;
-            isGreatBeast = greatBeast;
+            isBoss = boss;
             groundOffset = HalfHeightOf(renderer);
             ViewMaterials.SetColor(primitiveRenderer, color);
             BuildHpBar();
             BuildActiveIndicator();
             BuildFacingArrow();
-            if (isGreatBeast)
+            if (isBoss)
             {
                 BuildEvilAura();
             }
@@ -218,9 +218,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 color: new Color(0.08f, 0.08f, 0.08f, 1f),
                 localOffsetZ: 0f);
 
-            // Fill — green HP for normal units; the Great Beast's pool reads as
+            // Fill — green HP for normal units; the Boss's pool reads as
             // a violet Corruption gauge instead. Scaled by UpdateHp.
-            Color fillColor = isGreatBeast
+            Color fillColor = isBoss
                 ? new Color(0.66f, 0.30f, 0.85f, 1f)
                 : new Color(0.45f, 0.9f, 0.45f, 1f);
             hpBarFill = CreateBarQuad(
@@ -336,7 +336,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             tickRenderer.receiveShadows = false;
         }
 
-        // Purple corruption aura for the Great Beast — a code-built particle
+        // Purple corruption aura for the Boss — a code-built particle
         // system of violet motes drifting up off the body. Placeholder VFX, like
         // everything else here, but it reads as "this thing is radiating evil".
         private void BuildEvilAura()
