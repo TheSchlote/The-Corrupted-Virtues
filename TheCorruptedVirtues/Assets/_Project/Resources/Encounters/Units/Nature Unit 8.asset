@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adc6db9c0d39001488a9d96b80374e4f, type: 3}
+  m_Name: Nature Unit 8
+  m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.UnitArchetypeSO
+  displayName: Nature Unit 8
+  element: 0
+  maxHP: 95
+  maxMP: 20
+  attack: 15
+  defense: 75
+  specialAttack: 15
+  specialDefense: 75
+  speed: 12
+  moveRange: 4
+  aiBehavior: 0
+  isBoss: 0
+  footprintWidth: 1
+  footprintHeight: 1
+  abilities:
+  - {fileID: 11400000, guid: f2775bedf3fb52e4bb0f66ba994b51d8, type: 2}
+  - {fileID: 11400000, guid: 420be36d06383204db7316ca0528251d, type: 2}

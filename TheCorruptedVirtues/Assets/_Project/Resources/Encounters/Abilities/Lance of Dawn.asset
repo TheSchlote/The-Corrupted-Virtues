@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f567fd2114f1324e9c176ac53ade0d9, type: 3}
+  m_Name: Lance of Dawn
+  m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.AbilitySO
+  displayName: Lance of Dawn
+  kind: 1
+  element: 5
+  power: 26
+  scaling: 1.3
+  mpCost: 12
+  qteType: 2
+  qteDifficulty: 1
+  aoeRadius: 0
+  overrideTargeting: 1
+  targeting: 0
+  range: 1

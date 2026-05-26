@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f376fd8eb542e8447927aa3a612932b0, type: 3}
+  m_Name: Elemental Clash
+  m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.EncounterSO
+  displayName: Elemental Clash
+  sortOrder: 5
+  map: {fileID: 11400000, guid: bd1705e4f226b5349a8492e0fa7c7c12, type: 2}
+  placements:
+  - unit: {fileID: 11400000, guid: e5dfc352fd9160548bbcd045fdeeeb46, type: 2}
+    faction: 0
+    id: 1
+    coord: {x: 1, y: 0}
+  - unit: {fileID: 11400000, guid: 8eab86b4ef517954cbfe24285bedb3a1, type: 2}
+    faction: 0
+    id: 2
+    coord: {x: 1, y: 1}
+  - unit: {fileID: 11400000, guid: 4a325e14f70340944a5053853cadb587, type: 2}
+    faction: 0
+    id: 3
+    coord: {x: 1, y: 2}
+  - unit: {fileID: 11400000, guid: 5a2d9eec1c121ae46982dec445124eac, type: 2}
+    faction: 0
+    id: 4
+    coord: {x: 1, y: 3}
+  - unit: {fileID: 11400000, guid: da92a0fc4a76054418d885b2dd3e6a63, type: 2}
+    faction: 0
+    id: 5
+    coord: {x: 1, y: 4}
+  - unit: {fileID: 11400000, guid: 5b67e6eb2c075014c9e75288e09af0cd, type: 2}
+    faction: 0
+    id: 6
+    coord: {x: 1, y: 5}
+  - unit: {fileID: 11400000, guid: fa026fe6acca6f3448c5f3a407beace3, type: 2}
+    faction: 0
+    id: 7
+    coord: {x: 1, y: 6}
+  - unit: {fileID: 11400000, guid: e5dfc352fd9160548bbcd045fdeeeb46, type: 2}
+    faction: 1
+    id: 8
+    coord: {x: 8, y: 0}
+  - unit: {fileID: 11400000, guid: 8eab86b4ef517954cbfe24285bedb3a1, type: 2}
+    faction: 1
+    id: 9
+    coord: {x: 8, y: 1}
+  - unit: {fileID: 11400000, guid: 4a325e14f70340944a5053853cadb587, type: 2}
+    faction: 1
+    id: 10
+    coord: {x: 8, y: 2}
+  - unit: {fileID: 11400000, guid: 5a2d9eec1c121ae46982dec445124eac, type: 2}
+    faction: 1
+    id: 11
+    coord: {x: 8, y: 3}
+  - unit: {fileID: 11400000, guid: da92a0fc4a76054418d885b2dd3e6a63, type: 2}
+    faction: 1
+    id: 12
+    coord: {x: 8, y: 4}
+  - unit: {fileID: 11400000, guid: 5b67e6eb2c075014c9e75288e09af0cd, type: 2}
+    faction: 1
+    id: 13
+    coord: {x: 8, y: 5}
+  - unit: {fileID: 11400000, guid: fa026fe6acca6f3448c5f3a407beace3, type: 2}
+    faction: 1
+    id: 14
+    coord: {x: 8, y: 6}
