@@ -8,10 +8,9 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
     // an SO-backed map asset plugs into later (roadmap: data -> SOs).
     public static class MapLibrary
     {
-        // The original 8x8 with a 2x2 high-ground plateau in the contested
-        // midfield, preserved verbatim from the M2 terrain slice (was hardcoded
-        // in CombatSliceOrchestrator.BuildTerrain). Both squads start
-        // equidistant from the rise, so taking it is a real opening choice.
+        // A central high-ground plateau, preserved from the M2 terrain slice.
+        // Both squads start equidistant from the rise, so taking it is a real
+        // opening choice.
         public static BattleMapSpec Plateau()
         {
             return new BattleMapSpec("Plateau", 8, 8,
@@ -24,10 +23,10 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 });
         }
 
-        // A wider 10x8 arena split by a central wall (x=4) with two gaps at
-        // y=3 and y=5 — the only lanes between the sides, so engaging means
-        // committing to a chokepoint. The enemy side holds a small rise the
-        // attacker has to climb to. Demonstrates obstacles + variable size.
+        // A wider arena split by a central wall with two gaps — the only lanes
+        // between the sides, so engaging means committing to a chokepoint. The
+        // enemy side holds a small rise the attacker has to climb to.
+        // Demonstrates obstacles + a larger grid than the Plateau.
         public static BattleMapSpec RuinedHall()
         {
             return new BattleMapSpec("Ruined Hall", 10, 8,
@@ -44,8 +43,8 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 });
         }
 
-        // A 10x10 open arena broken by two 2x2 pillars, leaving 2-wide lanes so
-        // the 2x2 Great Beast can navigate them (a 1-wide gap would trap it).
+        // An open arena broken by two 2x2 pillars, leaving 2-wide lanes so the
+        // Boss can navigate them (a 1-wide gap would trap a multi-tile unit).
         // No elevation by design: a multi-tile unit can't straddle an elevation
         // edge, so raising tiles in its lanes would wall it off.
         public static BattleMapSpec PillaredHall()
@@ -69,7 +68,6 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             return new BattleMapSpec("Highland Siege", 9, 8,
                 elevation: new[]
                 {
-                    // Right plateau (level 1), wrapping a level-2 peak at its centre.
                     new ElevationTile(new GridCoord(6, 2), 1), new ElevationTile(new GridCoord(7, 2), 1), new ElevationTile(new GridCoord(8, 2), 1),
                     new ElevationTile(new GridCoord(6, 3), 1), new ElevationTile(new GridCoord(8, 3), 1),
                     new ElevationTile(new GridCoord(6, 4), 1), new ElevationTile(new GridCoord(8, 4), 1),
@@ -86,9 +84,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             return new BattleMapSpec("The Narrows", 11, 7,
                 obstacles: new[]
                 {
-                    // Wall at x=4 sealing the lower rows; gap at the top (y=5,6).
                     new GridCoord(4, 0), new GridCoord(4, 1), new GridCoord(4, 2), new GridCoord(4, 3), new GridCoord(4, 4),
-                    // Wall at x=7 sealing the upper rows; gap at the bottom (y=0,1).
                     new GridCoord(7, 2), new GridCoord(7, 3), new GridCoord(7, 4), new GridCoord(7, 5), new GridCoord(7, 6),
                 });
         }

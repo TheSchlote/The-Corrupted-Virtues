@@ -4,7 +4,7 @@ namespace TheCorruptedVirtues.CombatSlice.Core
 {
     // A rectangular W x H block of tiles a unit occupies, anchored at its
     // minimum (origin) corner. M1 only ever spawns 1x1 units; multi-tile
-    // footprints (e.g. the 2x2 "Great Beast" bosses) are supported here from
+    // footprints (e.g. the 2x2 "Boss" bosses) are supported here from
     // the start so the grid core never has to be reworked for them later.
     public readonly struct GridFootprint
     {

@@ -67,7 +67,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             get
             {
-                // F1 = dev toggle between the squad fight and the Great Beast.
+                // F1 = dev toggle between the squad fight and the Boss.
                 // Keyboard-only on purpose: a playtest affordance, not a player control.
                 Keyboard kb = Keyboard.current;
                 return kb != null && kb.f1Key.wasPressedThisFrame;

@@ -72,7 +72,7 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 return EnemyTurnPlan.EndTurn;
             }
 
-            // Multi-tile units (the mobile Great Beast) need footprint-aware
+            // Multi-tile units (the mobile Boss) need footprint-aware
             // pathfinding; 1x1 units keep the original single-cell logic so
             // their behaviour — and the tests pinning it — stay unchanged.
             if (!actor.Footprint.IsSingle)

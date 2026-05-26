@@ -5,6 +5,7 @@
         "TheCorruptedVirtues.Combat",
         "TheCorruptedVirtues.GridCore",
         "TheCorruptedVirtues.Battle",
+        "TheCorruptedVirtues.Unity",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

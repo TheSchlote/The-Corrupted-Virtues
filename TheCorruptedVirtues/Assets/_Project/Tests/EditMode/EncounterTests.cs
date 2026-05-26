@@ -82,21 +82,21 @@ namespace TheCorruptedVirtues.Tests
         }
 
         [Test]
-        public void GreatBeastSpec_KeepsFootprintAndFlag()
+        public void BossSpec_KeepsFootprintAndFlag()
         {
             var spec = new EncounterSpec("Beast", new List<EncounterUnitSpec>
             {
                 new EncounterUnitSpec(1, Faction.Enemy, new GridCoord(5, 4),
                     new CombatStats(400, 0, 22, 80, 10, 80, 6), ElementType.Dark,
                     new List<AbilitySpec> { new AbilitySpec("Slam", AbilityKind.Physical, ElementType.Dark, 14, 1.0f) },
-                    footprint: new GridFootprint(2, 2), isGreatBeast: true),
+                    footprint: new GridFootprint(2, 2), isBoss: true),
             });
 
             CombatUnit beast = spec.BuildRoster()[0];
 
             Assert.That(beast.Footprint.Width, Is.EqualTo(2));
             Assert.That(beast.Footprint.Height, Is.EqualTo(2));
-            Assert.That(beast.IsGreatBeast, Is.True);
+            Assert.That(beast.IsBoss, Is.True);
         }
 
         [Test]
@@ -122,11 +122,11 @@ namespace TheCorruptedVirtues.Tests
         }
 
         [Test]
-        public void FirstEncounter_IsGreatBeast_WithA2x2Boss()
+        public void FirstEncounter_IsBoss_WithA2x2Boss()
         {
             List<CombatUnit> roster = EncounterLibrary.All()[0].BuildRoster();
 
-            CombatUnit beast = roster.Find(u => u.IsGreatBeast);
+            CombatUnit beast = roster.Find(u => u.IsBoss);
             Assert.That(beast, Is.Not.Null);
             Assert.That(beast.Footprint.Width, Is.EqualTo(2));
             Assert.That(beast.Footprint.Height, Is.EqualTo(2));

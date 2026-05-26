@@ -4,7 +4,7 @@ using TheCorruptedVirtues.CombatSlice.Core;
 
 namespace TheCorruptedVirtues.Tests
 {
-    // The multi-tile movement layer for the mobile Great Beast: footprint
+    // The multi-tile movement layer for the mobile Boss: footprint
     // adjacency, footprint-aware approach pathfinding, lift-and-place occupancy,
     // and the planner's multi-tile branch.
     public class FootprintAdjacencyTests

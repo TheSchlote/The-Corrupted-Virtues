@@ -16,7 +16,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         bool CycleAbilityPressed { get; }
 
         // Edge-triggered debug/playtest: rebuild the fight in the other encounter
-        // (squad 2v2 <-> Great Beast) without leaving Play mode.
+        // (squad 2v2 <-> Boss) without leaving Play mode.
         bool SwitchEncounterPressed { get; }
 
         // Held grid-navigation intent; each axis is -1, 0, or 1.

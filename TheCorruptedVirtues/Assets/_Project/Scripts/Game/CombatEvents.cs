@@ -86,9 +86,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public readonly int Hp;
         public readonly int MaxHp;
         public readonly GridFootprint Footprint;
-        public readonly bool IsGreatBeast;
+        public readonly bool IsBoss;
 
-        public UnitSpawnedEvent(UnitId id, Faction faction, ElementType element, GridCoord coord, int hp, int maxHp, GridFootprint footprint, bool isGreatBeast)
+        public UnitSpawnedEvent(UnitId id, Faction faction, ElementType element, GridCoord coord, int hp, int maxHp, GridFootprint footprint, bool isBoss)
         {
             Id = id;
             Faction = faction;
@@ -97,7 +97,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             Hp = hp;
             MaxHp = maxHp;
             Footprint = footprint;
-            IsGreatBeast = isGreatBeast;
+            IsBoss = isBoss;
         }
     }
 
