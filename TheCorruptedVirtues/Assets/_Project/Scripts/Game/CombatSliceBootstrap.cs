@@ -35,7 +35,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             };
 
             CombatEvents events = new CombatEvents();
-            IUnitViewFactory unitFactory = new PrimitiveUnitViewFactory(CreateChild("UnitViews").transform);
+            // Model-backed views, with the primitive factory as fallback for any
+            // unit without a model yet — so real models drop in one at a time.
+            Transform unitViewsRoot = CreateChild("UnitViews").transform;
+            IUnitViewFactory unitFactory =
+                new ModelUnitViewFactory(unitViewsRoot, new PrimitiveUnitViewFactory(unitViewsRoot));
 
             GameObject presentation = CreateChild("Presentation");
             presentation.AddComponent<UnitViewPresenter>().Initialize(events, grid, unitFactory);

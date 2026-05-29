@@ -28,6 +28,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitSpawned += OnUnitSpawned;
             events.UnitMoved += OnUnitMoved;
             events.UnitFacingChanged += OnUnitFacingChanged;
+            events.UnitAttacked += OnUnitAttacked;
             events.UnitDamaged += OnUnitDamaged;
             events.UnitHealed += OnUnitHealed;
             events.UnitDied += OnUnitDied;
@@ -46,6 +47,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.UnitSpawned -= OnUnitSpawned;
             events.UnitMoved -= OnUnitMoved;
             events.UnitFacingChanged -= OnUnitFacingChanged;
+            events.UnitAttacked -= OnUnitAttacked;
             events.UnitDamaged -= OnUnitDamaged;
             events.UnitHealed -= OnUnitHealed;
             events.UnitDied -= OnUnitDied;
@@ -123,11 +125,19 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             ClearActiveDamagePreview();
         }
 
+        private void OnUnitAttacked(UnitAttackedEvent e)
+        {
+            if (views.TryGetValue(e.AttackerId, out IUnitView view))
+            {
+                view.PlayAttack();
+            }
+        }
+
         private void OnUnitDied(UnitId id)
         {
             if (views.TryGetValue(id, out IUnitView view))
             {
-                view.SetVisible(false);
+                view.Die();
             }
 
             ClearActiveDamagePreview();

@@ -14,6 +14,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public event Action<GridBuiltEvent> GridBuilt;
         public event Action<UnitSpawnedEvent> UnitSpawned;
         public event Action<UnitMovedEvent> UnitMoved;
+        // The attacker just committed to a strike (raised once per ability use,
+        // before damage lands). Lets the attacker's view play its swing/cast
+        // animation; the damage flash on the target is still UnitDamaged.
+        public event Action<UnitAttackedEvent> UnitAttacked;
         public event Action<UnitDamagedEvent> UnitDamaged;
         // M2 slice 2: Support abilities heal an ally. Separate from
         // UnitDamaged so views can react differently (HP rises, no hit flash,
@@ -50,6 +54,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseGridBuilt(GridBuiltEvent e) => GridBuilt?.Invoke(e);
         public void RaiseUnitSpawned(UnitSpawnedEvent e) => UnitSpawned?.Invoke(e);
         public void RaiseUnitMoved(UnitMovedEvent e) => UnitMoved?.Invoke(e);
+        public void RaiseUnitAttacked(UnitAttackedEvent e) => UnitAttacked?.Invoke(e);
         public void RaiseUnitDamaged(UnitDamagedEvent e) => UnitDamaged?.Invoke(e);
         public void RaiseUnitHealed(UnitHealedEvent e) => UnitHealed?.Invoke(e);
         public void RaiseUnitDied(UnitId id) => UnitDied?.Invoke(id);
@@ -122,6 +127,18 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         {
             Id = id;
             Facing = facing;
+        }
+    }
+
+    public readonly struct UnitAttackedEvent
+    {
+        public readonly UnitId AttackerId;
+        public readonly AbilityKind Kind;
+
+        public UnitAttackedEvent(UnitId attackerId, AbilityKind kind)
+        {
+            AttackerId = attackerId;
+            Kind = kind;
         }
     }
 
