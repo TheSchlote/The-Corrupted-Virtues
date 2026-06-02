@@ -6,7 +6,8 @@ commands; deterministic, explainable damage. Built in Unity with a strict pure-C
 separated from the Unity presentation layer.
 
 > Status: **early foundation.** Placeholder primitives only — the priority is a modular,
-> asset-agnostic architecture, not art. See [ROADMAP.md](ROADMAP.md).
+> asset-agnostic architecture, not art. See [ROADMAP.md](ROADMAP.md) for design intent and
+> [GitHub Issues](https://github.com/TheSchlote/The-Corrupted-Virtues/issues) for work tracking.
 
 ## Tech
 
@@ -39,7 +40,7 @@ ROADMAP.md                        living plan & milestones (edit freely)
 
 ## Documentation
 
-- [ROADMAP.md](ROADMAP.md) — milestones, locked design decisions, backlog (the living plan)
+- [ROADMAP.md](ROADMAP.md) — vision, design pillars, locked design decisions (work tracking lives in [GitHub Issues](https://github.com/TheSchlote/The-Corrupted-Virtues/issues))
 - [docs/DESIGN.md](docs/DESIGN.md) — combat-system design vision (Execution, elements, damage)
 - [docs/LORE.md](docs/LORE.md) — world & lore bible
 - [docs/STORY.md](docs/STORY.md) — minimal campaign spine
