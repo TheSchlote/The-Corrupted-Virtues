@@ -22,6 +22,8 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         [SerializeField] private QteDifficulty qteDifficulty = QteDifficulty.Normal;
         [Tooltip("Chebyshev burst radius; 0 = single target.")]
         [SerializeField] private int aoeRadius = 0;
+        [Tooltip("Beam length in tiles; 0 = not a line. Ignored if aoeRadius is set (burst wins).")]
+        [SerializeField] private int lineLength = 0;
 
         [Header("Targeting")]
         [Tooltip("Off = derive from Kind (Support -> Ally, else Enemy), matching AbilitySpec's default.")]
@@ -35,7 +37,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 displayName, kind, element, power, scaling,
                 mpCost, qteType, qteDifficulty, aoeRadius,
                 overrideTargeting ? (TargetingMode?)targeting : null,
-                range);
+                range, lineLength);
         }
 
         // Stamp this asset from a pure spec — used by the Editor content generator.
@@ -50,6 +52,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             qteType = spec.QteType;
             qteDifficulty = spec.QteDifficulty;
             aoeRadius = spec.AoeRadius;
+            lineLength = spec.LineLength;
             overrideTargeting = true;
             targeting = spec.Targeting;
             range = spec.Range;

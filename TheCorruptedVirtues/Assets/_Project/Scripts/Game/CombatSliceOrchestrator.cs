@@ -485,6 +485,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 events.RaiseAreaPreviewChanged(new AreaPreviewEvent(
                     AreaOfEffect.BurstTiles(cursorCoord, ability.AoeRadius, grid.Bounds)));
             }
+            else if (ability.IsLine && ability.Kind != AbilityKind.Support)
+            {
+                // Light the beam from the attacker toward the aimed enemy so the
+                // player sees the whole line (and who it pierces) before committing.
+                GridCoord dir = LineOfEffect.Direction(activeUnit.Coord, cursorCoord);
+                events.RaiseAreaPreviewChanged(new AreaPreviewEvent(
+                    LineOfEffect.LineTiles(activeUnit.Coord, dir, ability.LineLength, grid.Bounds)));
+            }
             else
             {
                 events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
@@ -512,7 +520,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             // Area attacks resolve with ForArea (high ground, no flanking), so
             // the forecast must use it too — otherwise a flanked hover over-reports
             // damage that the actual burst won't deal (forecast-matches-resolve).
-            SituationalModifiers mods = ability.IsAreaOfEffect
+            SituationalModifiers mods = (ability.IsAreaOfEffect || ability.IsLine)
                 ? CombatSituation.ForArea(activeUnit, targetUnit, elevation)
                 : CombatSituation.For(activeUnit, targetUnit, elevation);
 
@@ -747,6 +755,14 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
+            // Line attacks hit everyone on the beam from the attacker toward the
+            // aimed tile; resolved together (one win check), non-directional.
+            if (ability.IsLine && ability.Kind != AbilityKind.Support)
+            {
+                ResolveLineAbility(attacker, currentAttackCenter, ability, execution);
+                return;
+            }
+
             SituationalModifiers mods = CombatSituation.For(attacker, target, elevation);
 
             // Single-target attacks are directional: the attacker turns to face
@@ -783,6 +799,24 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private void ResolveAreaAbility(CombatUnit attacker, GridCoord center, AbilitySpec ability, ExecutionResult execution)
         {
             List<CombatUnit> targets = AreaOfEffect.CollectTargets(center, ability.AoeRadius, attacker.Faction, battle);
+            ResolveMultiTarget(attacker, targets, ability, execution);
+        }
+
+        // Resolve one line attack: gather every enemy on the beam from the
+        // attacker toward the aimed tile, then resolve them as a group (same
+        // non-directional ForArea rule as a burst).
+        private void ResolveLineAbility(CombatUnit attacker, GridCoord aim, AbilitySpec ability, ExecutionResult execution)
+        {
+            GridCoord dir = LineOfEffect.Direction(attacker.Coord, aim);
+            List<CombatUnit> targets = LineOfEffect.CollectTargets(attacker.Coord, dir, ability.LineLength, attacker.Faction, battle);
+            ResolveMultiTarget(attacker, targets, ability, execution);
+        }
+
+        // Apply a multi-target ability to a pre-gathered set (high ground, no
+        // flanking — AbilityResolver.ResolveArea), announce per target, then
+        // check the win once. Shared by burst (AoE) and line attacks.
+        private void ResolveMultiTarget(CombatUnit attacker, List<CombatUnit> targets, AbilitySpec ability, ExecutionResult execution)
+        {
             if (targets.Count == 0)
             {
                 return;

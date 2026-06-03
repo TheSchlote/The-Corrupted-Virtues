@@ -132,6 +132,13 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                     plan.Target.Coord, ability.AoeRadius, actor.Faction, state);
                 AbilityResolver.ResolveArea(actor, targets, ability, execution, elevation);
             }
+            else if (ability.IsLine)
+            {
+                var dir = LineOfEffect.Direction(actor.Coord, plan.Target.Coord);
+                List<CombatUnit> targets = LineOfEffect.CollectTargets(
+                    actor.Coord, dir, ability.LineLength, actor.Faction, state);
+                AbilityResolver.ResolveArea(actor, targets, ability, execution, elevation);
+            }
             else
             {
                 SituationalModifiers mods = CombatSituation.For(actor, plan.Target, elevation);
