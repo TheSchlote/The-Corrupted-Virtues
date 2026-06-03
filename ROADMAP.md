@@ -1,10 +1,13 @@
 # The Corrupted Virtues — Roadmap
 
-> **Living document.** Edit anything — checkboxes, scope, ordering, priorities. This is
-> yours to redirect as the game evolves. Claude reads this for design/scope intent.
-> World & story live in [docs/LORE.md](docs/LORE.md) and [docs/STORY.md](docs/STORY.md).
+> **📋 Task tracking has moved to the [GitHub Project board](https://github.com/users/TheSchlote/projects/8).**
+> Live status (Backlog → Up Next → In Progress → Done) is tracked there — one issue per
+> milestone/section, with the task checklists in each issue body. This file is now the home
+> for **vision, design pillars, and scope intent** (plus the historical milestone log);
+> Claude reads it for design/scope. World & story live in
+> [docs/LORE.md](docs/LORE.md) and [docs/STORY.md](docs/STORY.md).
 >
-> _Last reviewed: 2026-05-25_
+> _Last reviewed: 2026-05-25 · Migrated to the project board: 2026-06-02_
 
 ---
 
