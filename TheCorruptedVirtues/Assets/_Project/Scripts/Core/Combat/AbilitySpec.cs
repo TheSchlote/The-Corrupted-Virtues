@@ -33,6 +33,11 @@ namespace TheCorruptedVirtues.Combat
         public int LineLength { get; }
         public bool IsLine => LineLength > 0;
 
+        // Burst and beam both strike every opponent in a tile set rather than one
+        // faced target — non-directional, resolved together via ResolveArea. The
+        // single concept the targeting/preview/resolve paths branch on.
+        public bool IsMultiTarget => IsAreaOfEffect || IsLine;
+
         // Targeting and range, decoupled from Kind (which now selects only the
         // damage/heal formula). Defaults reproduce the old Kind-derived rule:
         // Support targets allies, everything else targets enemies, all at melee

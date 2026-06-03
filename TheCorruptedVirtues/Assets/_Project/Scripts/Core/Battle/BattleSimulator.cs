@@ -126,17 +126,9 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
             // Face the target before striking, as auto-facing does in the live game.
             actor.Facing = FacingRules.Toward(actor.Coord, plan.Target.Coord);
 
-            if (ability.IsAreaOfEffect)
+            if (ability.IsMultiTarget)
             {
-                List<CombatUnit> targets = AreaOfEffect.CollectTargets(
-                    plan.Target.Coord, ability.AoeRadius, actor.Faction, state);
-                AbilityResolver.ResolveArea(actor, targets, ability, execution, elevation);
-            }
-            else if (ability.IsLine)
-            {
-                var dir = LineOfEffect.Direction(actor.Coord, plan.Target.Coord);
-                List<CombatUnit> targets = LineOfEffect.CollectTargets(
-                    actor.Coord, dir, ability.LineLength, actor.Faction, state);
+                List<CombatUnit> targets = MultiTargetSelection.Collect(ability, actor, plan.Target.Coord, state);
                 AbilityResolver.ResolveArea(actor, targets, ability, execution, elevation);
             }
             else
