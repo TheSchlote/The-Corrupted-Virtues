@@ -284,6 +284,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
                 events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
+                events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
                 events.RaiseAbilitySelectionChanged(AbilitySelectionEvent.Cleared);
                 StartCoroutine(HandleEnemyTurn());
             }
@@ -386,6 +387,29 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.RaisePathPreviewChanged(new PathPreviewEvent(renderedPath, reachableSteps));
             RaiseSelection(cursor.CursorCoord, totalSteps, reachableSteps);
+            UpdateAttackRange();
+        }
+
+        // Paint the faint reach overlay for the active player unit's selected
+        // attack (from its current tile). Cleared once it has attacked, for a
+        // Support ability, or off the player's turn.
+        private void UpdateAttackRange()
+        {
+            if (activeUnit == null || !IsPlayerTurn || hasAttackedThisTurn)
+            {
+                events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
+                return;
+            }
+
+            AbilitySpec ability = activeUnit.SelectedAbility;
+            if (ability == null || ability.Kind == AbilityKind.Support)
+            {
+                events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
+                return;
+            }
+
+            events.RaiseAttackRangeChanged(new AttackRangeEvent(
+                AttackRange.Tiles(ability, activeUnit, grid.Bounds)));
         }
 
         private IReadOnlyList<GridCoord> BuildGhostPath()
@@ -478,12 +502,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // AoE: light the burst tiles centred on the cursor so the player
-            // sees the whole area before committing. Single-target clears it.
-            if (ability.IsAreaOfEffect && ability.Kind != AbilityKind.Support)
+            // Burst/beam light their affected tiles (a burst centred on the
+            // cursor, or the beam from the attacker toward it) so the player sees
+            // the area — and who a beam pierces — before committing. Single clears.
+            if (ability.IsMultiTarget && ability.Kind != AbilityKind.Support)
             {
                 events.RaiseAreaPreviewChanged(new AreaPreviewEvent(
-                    AreaOfEffect.BurstTiles(cursorCoord, ability.AoeRadius, grid.Bounds)));
+                    MultiTargetSelection.PreviewTiles(ability, activeUnit.Coord, cursorCoord, grid.Bounds)));
             }
             else
             {
@@ -509,10 +534,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // Area attacks resolve with ForArea (high ground, no flanking), so
-            // the forecast must use it too — otherwise a flanked hover over-reports
-            // damage that the actual burst won't deal (forecast-matches-resolve).
-            SituationalModifiers mods = ability.IsAreaOfEffect
+            // Multi-target (burst/beam) attacks resolve with ForArea (high ground,
+            // no flanking), so the forecast must use it too — otherwise a flanked
+            // hover over-reports damage the actual hit won't deal (forecast==resolve).
+            SituationalModifiers mods = ability.IsMultiTarget
                 ? CombatSituation.ForArea(activeUnit, targetUnit, elevation)
                 : CombatSituation.For(activeUnit, targetUnit, elevation);
 
@@ -630,6 +655,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
             events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
+            events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
             currentMeter.Begin(currentAbility.QteDifficulty);
 
             string hint = QteHint(currentAbility);
@@ -738,12 +764,13 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 return;
             }
 
-            // Area attacks hit everyone in the burst around the targeted tile;
-            // resolve them together (one win check) and skip the single-target
-            // facing turn (they're non-directional).
-            if (ability.IsAreaOfEffect && ability.Kind != AbilityKind.Support)
+            // Burst and beam are both non-directional multi-target hits: collect
+            // the victims by shape, resolve them together (one win check), and
+            // skip the single-target facing turn below.
+            if (ability.IsMultiTarget && ability.Kind != AbilityKind.Support)
             {
-                ResolveAreaAbility(attacker, currentAttackCenter, ability, execution);
+                List<CombatUnit> targets = MultiTargetSelection.Collect(ability, attacker, currentAttackCenter, battle);
+                ResolveMultiTarget(attacker, targets, ability, execution);
                 return;
             }
 
@@ -752,9 +779,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             // Single-target attacks are directional: the attacker turns to face
             // its target and strikes the faced tile (movement sets facing
             // otherwise; there is no standalone turn action). Support heals and
-            // AoE attacks don't turn to a single target. Kept out of the flank
-            // math above, which reads the *target's* facing.
-            if (ability.Kind != AbilityKind.Support && !ability.IsAreaOfEffect)
+            // multi-target (burst/beam) attacks don't turn to a single target.
+            // Kept out of the flank math above, which reads the *target's* facing.
+            if (ability.Kind != AbilityKind.Support && !ability.IsMultiTarget)
             {
                 attacker.Facing = FacingRules.Toward(attacker.Coord, target.Coord);
                 events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(attacker.Id, attacker.Facing));
@@ -777,12 +804,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             }
         }
 
-        // Resolve one area attack: gather every enemy in the burst, apply the
-        // ability to each (AbilityResolver.ResolveArea — high ground but no
-        // flanking), announce per target, then check the win once at the end.
-        private void ResolveAreaAbility(CombatUnit attacker, GridCoord center, AbilitySpec ability, ExecutionResult execution)
+        // Apply a multi-target ability to a pre-gathered set (high ground, no
+        // flanking — AbilityResolver.ResolveArea), announce per target, then
+        // check the win once. Shared by burst (AoE) and line attacks.
+        private void ResolveMultiTarget(CombatUnit attacker, List<CombatUnit> targets, AbilitySpec ability, ExecutionResult execution)
         {
-            List<CombatUnit> targets = AreaOfEffect.CollectTargets(center, ability.AoeRadius, attacker.Faction, battle);
             if (targets.Count == 0)
             {
                 return;

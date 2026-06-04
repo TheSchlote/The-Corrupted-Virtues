@@ -45,6 +45,8 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                     new AbilitySpec("Searing Lance", AbilityKind.Special, ElementType.Light, power: 22, scaling: 1.2f, mpCost: 10, qteType: QteType.SwingMeter, qteDifficulty: QteDifficulty.Hard),
                     new AbilitySpec("Flurry", AbilityKind.Physical, ElementType.Light, power: 7, scaling: 0.8f, mpCost: 8, qteType: QteType.ButtonMash, qteDifficulty: QteDifficulty.Normal),
                     new AbilitySpec("Lance of Dawn", AbilityKind.Special, ElementType.Light, power: 26, scaling: 1.3f, mpCost: 12, qteType: QteType.TimedPress, qteDifficulty: QteDifficulty.Hard),
+                    // First line/beam ability: pierces every enemy on the 4 tiles ahead.
+                    new AbilitySpec("Radiant Beam", AbilityKind.Special, ElementType.Light, power: 16, scaling: 1.1f, mpCost: 14, qteType: QteType.TimedPress, qteDifficulty: QteDifficulty.Normal, lineLength: 4),
                 }),
                 new EncounterUnitSpec(2, Faction.Player, new GridCoord(1, 3), fireSturdy, ElementType.Fire, new List<AbilitySpec>
                 {

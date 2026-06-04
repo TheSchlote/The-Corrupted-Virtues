@@ -38,6 +38,22 @@ namespace TheCorruptedVirtues.Tests
         }
 
         [Test]
+        public void AbilitySO_RoundTripsLineLength()
+        {
+            var original = new AbilitySpec("Test Beam", AbilityKind.Special, ElementType.Light,
+                power: 14, scaling: 1.0f, mpCost: 4, qteType: QteType.SwingMeter,
+                qteDifficulty: QteDifficulty.Normal, aoeRadius: 0, targeting: null, range: 1, lineLength: 3);
+
+            var so = ScriptableObject.CreateInstance<AbilitySO>();
+            so.Configure(original);
+            AbilitySpec result = so.ToSpec();
+
+            Assert.That(result.LineLength, Is.EqualTo(3));
+            Assert.That(result.IsLine, Is.True);
+            Assert.That(result.IsAreaOfEffect, Is.False);
+        }
+
+        [Test]
         public void MapSO_RoundTripsToSpec()
         {
             BattleMapSpec original = MapLibrary.RuinedHall();
@@ -172,6 +188,7 @@ namespace TheCorruptedVirtues.Tests
                         Assert.That(cu.Abilities[k].Power, Is.EqualTo(lu.Abilities[k].Power), $"{who} ability {k} power");
                         Assert.That(cu.Abilities[k].MpCost, Is.EqualTo(lu.Abilities[k].MpCost), $"{who} ability {k} mp");
                         Assert.That(cu.Abilities[k].AoeRadius, Is.EqualTo(lu.Abilities[k].AoeRadius), $"{who} ability {k} aoe");
+                        Assert.That(cu.Abilities[k].LineLength, Is.EqualTo(lu.Abilities[k].LineLength), $"{who} ability {k} line");
                     }
                 }
 

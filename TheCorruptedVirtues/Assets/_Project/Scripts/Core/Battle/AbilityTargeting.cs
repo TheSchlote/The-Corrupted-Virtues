@@ -18,6 +18,15 @@ namespace TheCorruptedVirtues.CombatSlice.Battle
                 return false;
             }
 
+            // Line/beam: a cardinal enemy within LineLength tiles. Checked before
+            // the faction switch so the beam's reach (not melee Range) governs
+            // validity, and the cursor only validates enemies the beam will hit.
+            if (ability.IsLine)
+            {
+                return candidate.Faction != actor.Faction
+                    && LineOfEffect.OnLine(actor.Coord, candidate.Coord, ability.LineLength, candidate);
+            }
+
             switch (ability.Targeting)
             {
                 case TargetingMode.Self:

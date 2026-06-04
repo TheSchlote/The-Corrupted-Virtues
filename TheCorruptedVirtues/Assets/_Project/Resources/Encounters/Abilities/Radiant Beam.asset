@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1f567fd2114f1324e9c176ac53ade0d9, type: 3}
-  m_Name: Tidal Slash
+  m_Name: Radiant Beam
   m_EditorClassIdentifier: TheCorruptedVirtues.Unity::TheCorruptedVirtues.CombatSlice.Unity.AbilitySO
-  displayName: Tidal Slash
-  kind: 0
-  element: 1
-  power: 10
-  scaling: 1
-  mpCost: 0
-  qteType: 0
+  displayName: Radiant Beam
+  kind: 1
+  element: 5
+  power: 16
+  scaling: 1.1
+  mpCost: 14
+  qteType: 2
   qteDifficulty: 0
   aoeRadius: 0
-  lineLength: 0
+  lineLength: 4
   overrideTargeting: 1
   targeting: 0
   range: 1

@@ -21,6 +21,7 @@ MonoBehaviour:
   qteType: 1
   qteDifficulty: 0
   aoeRadius: 0
+  lineLength: 0
   overrideTargeting: 1
   targeting: 0
   range: 1
