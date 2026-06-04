@@ -25,6 +25,19 @@ namespace TheCorruptedVirtues.Combat
         // disagree: an ability is AoE iff it has a burst radius.
         public bool IsAreaOfEffect => AoeRadius > 0;
 
+        // A line/beam attack: hits every opponent on the 'LineLength' tiles
+        // directly in front of the attacker (cardinal). Like AoE it's a
+        // non-directional multi-target hit (resolved via ResolveArea), so the
+        // two shapes are mutually exclusive — the constructor zeroes LineLength
+        // when AoeRadius is set, keeping exactly one shape per ability.
+        public int LineLength { get; }
+        public bool IsLine => LineLength > 0;
+
+        // Burst and beam both strike every opponent in a tile set rather than one
+        // faced target — non-directional, resolved together via ResolveArea. The
+        // single concept the targeting/preview/resolve paths branch on.
+        public bool IsMultiTarget => IsAreaOfEffect || IsLine;
+
         // Targeting and range, decoupled from Kind (which now selects only the
         // damage/heal formula). Defaults reproduce the old Kind-derived rule:
         // Support targets allies, everything else targets enemies, all at melee
@@ -51,7 +64,8 @@ namespace TheCorruptedVirtues.Combat
             QteDifficulty qteDifficulty,
             int aoeRadius = 0,
             TargetingMode? targeting = null,
-            int range = 1)
+            int range = 1,
+            int lineLength = 0)
         {
             Name = name;
             Kind = kind;
@@ -62,6 +76,8 @@ namespace TheCorruptedVirtues.Combat
             QteType = qteType;
             QteDifficulty = qteDifficulty;
             AoeRadius = aoeRadius < 0 ? 0 : aoeRadius;
+            // Burst wins if both are set, so an ability is exactly one shape.
+            LineLength = aoeRadius > 0 ? 0 : (lineLength < 0 ? 0 : lineLength);
             // Default targeting derives from Kind so existing call sites are
             // unchanged: Support heals allies, everything else strikes enemies.
             Targeting = targeting ?? (kind == AbilityKind.Support ? TargetingMode.Ally : TargetingMode.Enemy);

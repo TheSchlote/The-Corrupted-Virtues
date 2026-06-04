@@ -15,6 +15,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         private static readonly Color HighGroundColor = new Color(0.30f, 0.34f, 0.40f);
         private static readonly Color ObstacleColor = new Color(0.40f, 0.32f, 0.26f);
         private static readonly Color AreaColor = new Color(0.95f, 0.55f, 0.25f);
+        // Faint blue reach overlay for the selected attack — distinct from the
+        // orange hit preview, and drawn just beneath it.
+        private static readonly Color RangeColor = new Color(0.32f, 0.5f, 0.82f);
 
         private CombatEvents events;
         private GridPresenter grid;
@@ -24,6 +27,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // Pooled flat slabs lit on the tiles an AoE attack would hit. Grown on
         // demand; surplus markers are hidden, never destroyed.
         private readonly List<GameObject> areaMarkers = new List<GameObject>();
+        // Pooled slabs for the faint attack-range overlay (same pattern, drawn
+        // just beneath the area markers).
+        private readonly List<GameObject> rangeMarkers = new List<GameObject>();
 
         // Terrain geometry (ground plane + elevation + obstacle blocks), rebuilt
         // on every GridBuilt. Tracked so an encounter switch tears the old map
@@ -45,6 +51,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.SelectionChanged += OnSelectionChanged;
             events.PathPreviewChanged += OnPathPreviewChanged;
             events.AreaPreviewChanged += OnAreaPreviewChanged;
+            events.AttackRangeChanged += OnAttackRangeChanged;
             events.CombatReset += OnCombatReset;
         }
 
@@ -59,6 +66,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.SelectionChanged -= OnSelectionChanged;
             events.PathPreviewChanged -= OnPathPreviewChanged;
             events.AreaPreviewChanged -= OnAreaPreviewChanged;
+            events.AttackRangeChanged -= OnAttackRangeChanged;
             events.CombatReset -= OnCombatReset;
         }
 
@@ -304,11 +312,71 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             return marker;
         }
 
+        // The faint reach overlay for the selected attack, shown on selection
+        // and drawn just under the bright per-aim hit slabs. Same pooling as the
+        // area markers.
+        private void OnAttackRangeChanged(AttackRangeEvent e)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<GridCoord> tiles = e.Tiles;
+            int count = tiles == null ? 0 : tiles.Count;
+            for (int i = 0; i < count; i++)
+            {
+                GameObject marker = GetOrCreateRangeMarker(i);
+                Vector3 pos = grid.GridToWorld(tiles[i], grid.CursorY);
+                pos.y -= 0.02f; // sit beneath the hit-preview slabs
+                marker.transform.position = pos;
+                marker.SetActive(true);
+            }
+
+            for (int i = count; i < rangeMarkers.Count; i++)
+            {
+                rangeMarkers[i].SetActive(false);
+            }
+        }
+
+        private GameObject GetOrCreateRangeMarker(int index)
+        {
+            if (index < rangeMarkers.Count)
+            {
+                return rangeMarkers[index];
+            }
+
+            GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            marker.name = $"RangeMarker_{index}";
+            marker.transform.SetParent(transform, false);
+            marker.transform.localScale = new Vector3(0.9f, 0.04f, 0.9f);
+
+            Collider markerCollider = marker.GetComponent<Collider>();
+            if (markerCollider != null)
+            {
+                Destroy(markerCollider);
+            }
+
+            Renderer markerRenderer = marker.GetComponent<Renderer>();
+            if (markerRenderer != null)
+            {
+                markerRenderer.material = ViewMaterials.CreateColored(RangeColor);
+            }
+
+            marker.SetActive(false);
+            rangeMarkers.Add(marker);
+            return marker;
+        }
+
         private void HideAllMarkers()
         {
             for (int i = 0; i < areaMarkers.Count; i++)
             {
                 areaMarkers[i].SetActive(false);
+            }
+            for (int i = 0; i < rangeMarkers.Count; i++)
+            {
+                rangeMarkers[i].SetActive(false);
             }
         }
 
