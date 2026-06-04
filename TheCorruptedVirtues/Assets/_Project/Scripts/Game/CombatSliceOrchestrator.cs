@@ -284,6 +284,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
                 events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
                 events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
+                events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
                 events.RaiseAbilitySelectionChanged(AbilitySelectionEvent.Cleared);
                 StartCoroutine(HandleEnemyTurn());
             }
@@ -386,6 +387,29 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
 
             events.RaisePathPreviewChanged(new PathPreviewEvent(renderedPath, reachableSteps));
             RaiseSelection(cursor.CursorCoord, totalSteps, reachableSteps);
+            UpdateAttackRange();
+        }
+
+        // Paint the faint reach overlay for the active player unit's selected
+        // attack (from its current tile). Cleared once it has attacked, for a
+        // Support ability, or off the player's turn.
+        private void UpdateAttackRange()
+        {
+            if (activeUnit == null || !IsPlayerTurn || hasAttackedThisTurn)
+            {
+                events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
+                return;
+            }
+
+            AbilitySpec ability = activeUnit.SelectedAbility;
+            if (ability == null || ability.Kind == AbilityKind.Support)
+            {
+                events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
+                return;
+            }
+
+            events.RaiseAttackRangeChanged(new AttackRangeEvent(
+                AttackRange.Tiles(ability, activeUnit, grid.Bounds)));
         }
 
         private IReadOnlyList<GridCoord> BuildGhostPath()
@@ -631,6 +655,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             events.RaisePathPreviewChanged(PathPreviewEvent.Cleared);
             events.RaiseDamageEstimateChanged(DamageEstimateEvent.Cleared);
             events.RaiseAreaPreviewChanged(AreaPreviewEvent.Cleared);
+            events.RaiseAttackRangeChanged(AttackRangeEvent.Cleared);
             currentMeter.Begin(currentAbility.QteDifficulty);
 
             string hint = QteHint(currentAbility);

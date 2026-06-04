@@ -35,6 +35,9 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // M2 AoE slice: the tiles an area attack would hit, for highlighting
         // when the player hovers a valid AoE target. Cleared (empty) otherwise.
         public event Action<AreaPreviewEvent> AreaPreviewChanged;
+        // The faint "reach" overlay for the selected attack, shown the moment an
+        // ability is selected (vs AreaPreview, the bright per-aim hit preview).
+        public event Action<AttackRangeEvent> AttackRangeChanged;
         public event Action<DamageEstimateEvent> DamageEstimateChanged;
         // M2 facing slice: a unit turned (after a move step, on attack, or at
         // spawn). Views orient a facing arrow; logic owns the canonical facing.
@@ -59,6 +62,7 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         public void RaiseSelectionChanged(SelectionChangedEvent e) => SelectionChanged?.Invoke(e);
         public void RaisePathPreviewChanged(PathPreviewEvent e) => PathPreviewChanged?.Invoke(e);
         public void RaiseAreaPreviewChanged(AreaPreviewEvent e) => AreaPreviewChanged?.Invoke(e);
+        public void RaiseAttackRangeChanged(AttackRangeEvent e) => AttackRangeChanged?.Invoke(e);
         public void RaiseDamageEstimateChanged(DamageEstimateEvent e) => DamageEstimateChanged?.Invoke(e);
         public void RaiseUnitFacingChanged(UnitFacingChangedEvent e) => UnitFacingChanged?.Invoke(e);
         public void RaiseAbilitySelectionChanged(AbilitySelectionEvent e) => AbilitySelectionChanged?.Invoke(e);
@@ -190,6 +194,23 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         }
 
         public static AreaPreviewEvent Cleared => default;
+    }
+
+    // The tiles a selected attack can reach from the attacker's current tile —
+    // the faint reach overlay shown on selection. Same cleared-by-default shape
+    // as AreaPreviewEvent (Tiles null/empty = cleared).
+    public readonly struct AttackRangeEvent
+    {
+        public readonly bool HasRange;
+        public readonly IReadOnlyList<GridCoord> Tiles;
+
+        public AttackRangeEvent(IReadOnlyList<GridCoord> tiles)
+        {
+            HasRange = tiles != null && tiles.Count > 0;
+            Tiles = tiles;
+        }
+
+        public static AttackRangeEvent Cleared => default;
     }
 
     public readonly struct SelectionChangedEvent
