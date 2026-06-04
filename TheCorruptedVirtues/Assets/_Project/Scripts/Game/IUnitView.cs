@@ -17,6 +17,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         // Brief "I got hit" feedback.
         void PlayHitFlash();
 
+        // The attacker's swing / cast cue (one per ability use). Primitives can
+        // fall back to a flash; rigged models trigger their Attack animation.
+        void PlayAttack();
+
         // Update any view-side HP display (floating bar, ring, etc). Logic
         // still owns the canonical HP — this is purely presentation.
         void UpdateHp(int current, int max);
@@ -38,6 +42,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
         void SetFacing(Facing facing);
 
         void SetVisible(bool visible);
+
+        // The unit died — view plays its dramatic exit (death animation, then
+        // self-hide). Distinct from SetVisible(false), which is just generic
+        // hiding (e.g. for the spawn-reuse path).
+        void Die();
 
         void Despawn();
     }

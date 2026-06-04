@@ -119,27 +119,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                         continue;
                     }
 
-                    GameObject block = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    block.name = $"HighGround_{x}_{y}";
-                    block.transform.SetParent(transform, false);
-
+                    Vector3 elevSize = new Vector3(grid.CellSize, blockHeight, grid.CellSize);
+                    GameObject block = CreateProtoBitBlock($"HighGround_{x}_{y}", elevSize, HighGroundColor);
                     Vector3 surface = grid.GridToWorld(coord);
-                    block.transform.localScale = new Vector3(grid.CellSize, blockHeight, grid.CellSize);
-                    block.transform.position = new Vector3(surface.x, surface.y - blockHeight * 0.5f, surface.z);
-
-                    // Decorative only — keep cursor/mouse raycasts hitting the
-                    // flat ground plane rather than these blocks.
-                    Collider blockCollider = block.GetComponent<Collider>();
-                    if (blockCollider != null)
-                    {
-                        Destroy(blockCollider);
-                    }
-
-                    Renderer blockRenderer = block.GetComponent<Renderer>();
-                    if (blockRenderer != null)
-                    {
-                        blockRenderer.material = ViewMaterials.CreateColored(HighGroundColor);
-                    }
+                    // Block's pivot is bottom-centre; floor is at surface.y - blockHeight.
+                    block.transform.position = new Vector3(surface.x, surface.y - blockHeight, surface.z);
 
                     Track(block);
                 }
@@ -168,29 +152,74 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                         continue;
                     }
 
-                    GameObject block = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    block.name = $"Obstacle_{x}_{y}";
-                    block.transform.SetParent(transform, false);
-
+                    Vector3 wallSize = new Vector3(grid.CellSize, wallHeight, grid.CellSize);
+                    GameObject block = CreateProtoBitBlock($"Obstacle_{x}_{y}", wallSize, ObstacleColor);
                     Vector3 surface = grid.GridToWorld(coord);
-                    block.transform.localScale = new Vector3(grid.CellSize, wallHeight, grid.CellSize);
-                    block.transform.position = new Vector3(surface.x, surface.y + wallHeight * 0.5f, surface.z);
-
-                    Collider blockCollider = block.GetComponent<Collider>();
-                    if (blockCollider != null)
-                    {
-                        Destroy(blockCollider);
-                    }
-
-                    Renderer blockRenderer = block.GetComponent<Renderer>();
-                    if (blockRenderer != null)
-                    {
-                        blockRenderer.material = ViewMaterials.CreateColored(ObstacleColor);
-                    }
+                    // Block's pivot is bottom-centre; bottom sits on the cell surface.
+                    block.transform.position = new Vector3(surface.x, surface.y, surface.z);
 
                     Track(block);
                 }
             }
+        }
+
+        // Cached Prototype Bits cube — one Resources.Load on first need, shared
+        // across every elevation/obstacle block. Both the mesh and its native
+        // KayKit material are kept so the blocks render in the prototype palette
+        // (URP/Lit already, no shader conversion needed).
+        private static Mesh _protoCubeMesh;
+        private static Material _protoCubeMaterial;
+        private static bool _protoLoadAttempted;
+
+        // Builds a decorative block from the KayKit Prototype Bits cube and sizes
+        // it to the requested world dimensions. The returned block's pivot is
+        // bottom-centre regardless of which path runs — KayKit's cube is already
+        // pivoted there, and the fallback wraps Unity's centre-pivot primitive
+        // in a child shifted up by half its height. fallbackColor is only used
+        // by the fallback path (if Prototype Bits aren't imported).
+        private GameObject CreateProtoBitBlock(string objectName, Vector3 worldSize, Color fallbackColor)
+        {
+            if (!_protoLoadAttempted)
+            {
+                _protoLoadAttempted = true;
+                GameObject src = Resources.Load<GameObject>("Environment/Prototype/Primitive_Cube");
+                if (src != null)
+                {
+                    MeshFilter srcMf = src.GetComponentInChildren<MeshFilter>();
+                    _protoCubeMesh = srcMf != null ? srcMf.sharedMesh : null;
+                    MeshRenderer srcMr = src.GetComponentInChildren<MeshRenderer>();
+                    _protoCubeMaterial = srcMr != null ? srcMr.sharedMaterial : null;
+                }
+            }
+
+            GameObject block = new GameObject(objectName);
+            block.transform.SetParent(transform, false);
+
+            if (_protoCubeMesh != null && _protoCubeMaterial != null)
+            {
+                MeshFilter mf = block.AddComponent<MeshFilter>();
+                mf.sharedMesh = _protoCubeMesh;
+                MeshRenderer mr = block.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = _protoCubeMaterial;
+                Vector3 m = _protoCubeMesh.bounds.size;
+                block.transform.localScale = new Vector3(
+                    m.x > 0f ? worldSize.x / m.x : worldSize.x,
+                    m.y > 0f ? worldSize.y / m.y : worldSize.y,
+                    m.z > 0f ? worldSize.z / m.z : worldSize.z);
+            }
+            else
+            {
+                GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                visual.name = "FallbackCube";
+                visual.transform.SetParent(block.transform, false);
+                Collider c = visual.GetComponent<Collider>();
+                if (c != null) Destroy(c);
+                Renderer r = visual.GetComponent<Renderer>();
+                if (r != null) r.material = ViewMaterials.CreateColored(fallbackColor);
+                visual.transform.localScale = worldSize;
+                visual.transform.localPosition = new Vector3(0f, worldSize.y * 0.5f, 0f);
+            }
+            return block;
         }
 
         private void Track(GameObject go)

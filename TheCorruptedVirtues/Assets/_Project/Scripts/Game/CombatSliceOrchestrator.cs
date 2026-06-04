@@ -787,6 +787,11 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
                 events.RaiseUnitFacingChanged(new UnitFacingChangedEvent(attacker.Id, attacker.Facing));
             }
 
+            // Cue the attacker's swing/cast animation before damage lands — the
+            // view plays its strike, then the hit-flash on UnitDamaged completes
+            // the beat. (Area attacks raise this in ResolveAreaAbility instead.)
+            events.RaiseUnitAttacked(new UnitAttackedEvent(attacker.Id, ability.Kind));
+
             AbilityOutcome outcome = AbilityResolver.Resolve(attacker, target, ability, execution, mods);
 
             if (outcome.IsHeal)
@@ -813,6 +818,10 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             {
                 return;
             }
+
+            // One swing per area cast; per-target hit flashes still come from
+            // each RaiseUnitDamaged below.
+            events.RaiseUnitAttacked(new UnitAttackedEvent(attacker.Id, ability.Kind));
 
             IReadOnlyList<AbilityOutcome> outcomes =
                 AbilityResolver.ResolveArea(attacker, targets, ability, execution, elevation);

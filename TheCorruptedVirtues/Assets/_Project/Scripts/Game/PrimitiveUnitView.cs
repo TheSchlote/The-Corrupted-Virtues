@@ -88,6 +88,20 @@ namespace TheCorruptedVirtues.CombatSlice.Unity
             flashRoutine = StartCoroutine(Flash());
         }
 
+        // Primitives have no swing — reuse the hit flash as the attack cue so
+        // the player still sees *something* fire on each ability use.
+        public void PlayAttack()
+        {
+            PlayHitFlash();
+        }
+
+        // No death animation on a primitive — hide outright (matches the prior
+        // SetVisible(false) behaviour from when the presenter owned this beat).
+        public void Die()
+        {
+            SetVisible(false);
+        }
+
         public void UpdateHp(int current, int max)
         {
             cachedCurrentHp = current;
